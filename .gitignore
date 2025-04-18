@@ -1,3 +1,8 @@
+
+# ---> vim
+# Temporary swap files
+.*.swp
+
 # ---> Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
