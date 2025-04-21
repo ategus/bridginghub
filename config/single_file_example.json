@@ -1,0 +1,11 @@
+
+{
+    "config_collector": "",
+    "config_dataset": "",
+    "config_sender": "",
+    "collect": [ { "TODO": "Add an example" } ],
+    "send": [ { "TODO": "Add an example" } ],
+    "data": [ { "TODO": "Add an example" } ]
+}
+
+

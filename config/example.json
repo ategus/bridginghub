@@ -1,0 +1,8 @@
+
+{
+    "config_collector": "collect.d/example/",
+    "config_dataset": "data.d/example/",
+    "config_sender": "send.d/example/"
+}
+
+

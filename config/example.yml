@@ -1,0 +1,7 @@
+
+extend_python_path: []
+config_collector: "config/collect.d/example/"
+config_dataset: "config/data.d/example/"
+config_sender: "config/send.d/example/"
+
+
