@@ -2,7 +2,7 @@
 
 ## Preamble
 
-tl;dr? Note at least the title layout!
+*tl;dr?* Note at least the title layout!
 
 
 ## Description
@@ -21,18 +21,19 @@ This example config is meant to explain the options at hand.
 
 #### data (mapper)
 
-The `data` section is the central part and describes the
+The [*data section*](./data.d) is the central part and describes the
 data points themselfes and their relation to the other sections.
 It is not defining any action by itself but acts as a mapping hub.
 
 #### collect (action)
 
-The `collect` section defines information relevant for collecting
+The [*collect section*](./collect.d) defines information
+relevant for collecting
 data from specified sources, like sensors, tests, etc.
 
 #### send (action)
 
-The `send` section defines information relevant for sending
+The [*send section*](./send.d) defines information relevant for sending
 data further to distant services like data brokers, APIs, etc.
 
 
@@ -72,7 +73,7 @@ The whole config can be put in one file.
 In this case, every subsection is to be put into a separate map inside
 the main map under the key named after the subsection.
 
-See `./single_file_example.json` for details.
+See [`./file_example.json`](./single_file_example.json) for details.
 
 ### Split Directory/Files Config
 
@@ -82,5 +83,8 @@ Files starting with with the name of a subsection will have their
 content merged into the main config map as a separate map under the
 key named after the subsection.
 
-See `./example.json` and `./collect.d/ ./data.d/ ./send.d/` for
+See [`./example.json`](./example.json) and
+[`./collect.d/`](./collect.d/)
+[`./data.d/`](./data.d/)
+[`./send.d/`](./send.d/) for
 details.
