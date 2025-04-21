@@ -107,8 +107,6 @@ or transformations — without modifying the core.
 
 ## Usage
 
-## Usage
-
 Run the tool using:
 
 ```bash
