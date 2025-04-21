@@ -14,13 +14,38 @@ configure and adapt to a wide range of use cases.
 
 ## Setup
 
+### Requirements
+
+#### Minimal Setup
+
+  * python >3.5
+
+#### User Installation
+
+  * python >3.5
+  * pip
+
+#### Development
+
+  * git
+  * python >=3.7
+  * optional(/recommended): venv
+  * pip (see [requirements-dev.txt](./requirements-dev.txt))
+    * pre-commit
+    * black
+    * isort
+    * flake8
+    * mypy
+    * types-PyYAML
+
+
 ### Installation
 
-#### For Use
+#### For Quick and Brainless (minimal) Use
 
 If you only want to *use* the software:
 
-- Copy the folder structure from [`src/`](./src)
+- Copy the folder structure and contents from [`src/`](./src)
 - Optionally link [`src/main.py`](./src/main.py) to somewhere in your
   `PATH`, e.g.:
 
@@ -30,6 +55,11 @@ ln -s $PWD/src/main.py ~/bin/bridgingHub.py
 
 You will then need to create configuration files to suit your setup.
 See [Configuration](#configuration) for details.
+
+
+#### Full Installation
+
+*To be added.*
 
 
 #### For Development
