@@ -1,0 +1,7 @@
+
+module_path: "module.collect.test_collector"
+module_class_name: "TestCollector"
+#value: True
+data_config_file: "test.yml"
+
+
