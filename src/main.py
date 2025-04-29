@@ -164,14 +164,14 @@ if __name__ == "__main__":
         action_config_dir = args.actiondir
     if args.moduledir:
         action_module_dir = args.moduledir
-
-    # try to load the config context first
+    # args.workdir defaults to `cwd` if not set
     cfg_dir = args.workdir
     if not os.path.isdir(cfg_dir):
         print(f"Please provide a valid WORKDIR: {cfg_dir}")
         sys.exit(1)
     # initialize the config dictionary
     cfg = {}
+    # try to load the config context first
     try:
         if args.config:
             # get the config from the location provided by the user
@@ -179,7 +179,10 @@ if __name__ == "__main__":
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
         ac = KEY_ACTION_TYPES[action_name]
+        #
         if ac in cfg and cfg[ac]:
+            # The action config directory may not be passed on the CLI
+            # AND in the config at the same time..
             if action_config_dir:
                 print(
                     """The config is inconsistent, please use either the cli
@@ -189,15 +192,18 @@ if __name__ == "__main__":
             action_config_dir = cfg[ac]
 
         if action_name in cfg and cfg[action_name]:
+            # Testing again:
+            # It is considered illegal to have both, an action config
+            # file AND an action configuration at the same time..
             if action_config_dir:
                 print(
                     f"""The config is inconsistent, please use either cli,
                         split or single file configs, i.e. either '{ac}'
-                    OR '{action_name}' in '{cfg_dir}'"""
+                        OR '{action_name}' in '{cfg_dir}'"""
                 )
                 sys.exit(4)
-            # if there is only one action to be processed ready available,
-            # let's do it
+            # if the action has a config and thus only one action is to be
+            # processed, let's do it..
             run_module(action_name, cfg)
             sys.exit(0)  # all done here..
 
