@@ -18,17 +18,17 @@ configure and adapt to a wide range of use cases.
 
 #### Minimal Setup
 
-  * python >3.5
+  * python >3.10
 
 #### User Installation
 
-  * python >3.5
+  * python >3.10
   * pip
 
 #### Development
 
   * git
-  * python >=3.7
+  * python >=3.10
   * optional(/recommended): venv
   * pip (see [requirements-dev.txt](./requirements-dev.txt))
     * pre-commit
