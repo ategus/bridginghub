@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from importlib import import_module
 from typing import Type
 
@@ -21,21 +22,81 @@ class NoSuchModuleException(Exception):
     pass
 
 
+class BrokenConfigException(Exception):
+    """
+    Exception to be thrown on invalid or missing content
+    in the config file(s).
+    """
+
+    pass
+
+
 class BridgingHubBaseModule(ABC):
     """
     Abstract base class for all action modules.
     """
 
-    @abstractmethod
-    def run(self):
-        pass
+    # The action type this modules belongs to.
+    # These are the (possible) candidates:
+    # * collect (standard - synchronous input action)
+    # * consume (pending - asynchronous input action)
+    # * send (standard = synchronous output action)
+    # * produce (pending - asynchronous output action)
+    # * bridge (standard - connecting in-/output)
+    # * filter (pending - as bridge but edit content)
+    _action_type: str = ""
+
+    # For a minimal compatibility between the modules, the basic data
+    # structure is defined and filled with defaults. This will be
+    # overwritten by the config parameters. Keeping a map of customizable
+    # names allows for a translation beween different modules if necessary.
+    _custom_name: dict[str, str] = {
+        "id_name": "id",
+        "value_name": "value",
+        "timestamp_name": "timestamp",
+        "geohash_name": "geohash",
+        "location_name": "location",
+    }
+
+    # This will be filled with the 'value_register_map' on run init and
+    # the values on run time.
+    _data: dict[str, dict] = {}
+
+    # Store the config details related to the action type.
+    _action_detail: dict[str, str] = {}
 
     @abstractmethod
-    def configure(self, config: dict):
-        """Configure the module with the specific config.
-        TODO: We might later want to optionally verify it against a schema
-        :param dict config:"""
+    def run(self) -> dict:
         pass
+
+    def configure(self, config: dict) -> None:
+        """Configure the module with the specific config. This is intended
+        to happen after Object creation.
+        :param dict config:
+        :raise BrokenConfigException:"""
+        # set the custom names from config
+        # TODO
+        for k in self._custom_name.keys():
+            if k in config and config[k]:
+                self._custom_name = config[k]
+        # init the _data from value_register_map for adding values later
+        if "data" in config and config["data"]:
+            self._data = config["data"]
+        else:
+            raise BrokenConfigException(
+                "No 'data' section found in the config."
+            )
+        if self._action_type in config and config[self._action_type]:
+            self._action_detail = config[self._action_type]
+        else:
+            raise BrokenConfigException(
+                f"No '{self._action_type}' section found in the config."
+            )
+
+    def current_timestamp(self) -> int:
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        return int((now - epoch).total_seconds() * 1000000000)
 
 
 class BridgingHubModuleRegistry:
@@ -77,8 +138,7 @@ class BridgingHubModuleRegistry:
         module_class: Type = getattr(module, module_class_name)
         if not issubclass(module_class, BridgingHubBaseModule):
             raise NoSuchModuleException(
-                f"""There was an incompatible module registered for
-                '{module_path}'"""
+                f"An incompatible module was registered for '{module_path}.'"
             )
         return module_class()
 
@@ -88,11 +148,13 @@ class CollectorBaseModule(BridgingHubBaseModule):
     Abstract base collector module that can be extended.
     """
 
+    _action_type: str = "input"
+
     def run(self):
-        self.collect()
+        return self.collect()
 
     @abstractmethod
-    def collect(self):
+    def collect(self) -> dict[str, dict[str, str]]:
         pass
 
 
@@ -101,9 +163,11 @@ class SenderBaseModule(BridgingHubBaseModule):
     Abstract base sender module that can be extended.
     """
 
+    _action_type: str = "output"
+
     def run(self):
-        self.send()
+        return self.send()
 
     @abstractmethod
-    def send(self):
+    def send(self, message: dict[str, dict[str, str]]) -> None:
         pass
