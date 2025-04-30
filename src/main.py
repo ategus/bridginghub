@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # using argparse as we want to keep dependencies minimal
 import argparse
-import json
 
 # import logging
 # TODO use logfile on demand..
@@ -17,18 +16,7 @@ from bridging_hub_module import (
     NoSuchModuleException,
 )
 
-# define config parameter keys as 'constants' in order to get errors on typos
-KEY_CONFIG_COLLECTOR = "config_collector"
-KEY_CONFIG_DATASET = "config_dataset"
-KEY_CONFIG_SENDER = "config_sender"
-KEY_DATA_CONFIG_FILE = "data_config_file"
-KEY_DATA_CONFIG = "data"
-KEY_COLLECT_ACTION = "collect"
-KEY_SEND_ACTION = "send"
-KEY_ACTION_TYPES = {
-    KEY_COLLECT_ACTION: KEY_CONFIG_COLLECTOR,
-    KEY_SEND_ACTION: KEY_CONFIG_SENDER,
-}
+KEY_ACTION_TYPES = ["bridge", "collect", "filter", "send"]
 
 KEY_ACTION_MODULE_NAME = "module_class_name"
 KEY_ACTION_MODULE_PATH = "module_path"
@@ -53,8 +41,10 @@ def load_config(filename, workdir="") -> dict:
     :raise IllegalFileOperation:"""
     j = {}
     if not filename.startswith("/"):
-        filename = workdir + "/" + filename
+        filename = join(workdir, filename)
     if filename[-5:] == ".json":
+        import json
+
         try:
             with open(filename) as f:
                 j = json.load(f)
@@ -101,7 +91,9 @@ def run_module(action_name, config) -> bool:
         f = BridgingHubModuleRegistry.load_module(
             config[action_name][KEY_ACTION_MODULE_NAME]
         )
+        f.configure(config)
         f.run()
+        # TODO input -> filter -> output
     except (NoSuchModuleException, DuplicatedModuleException) as e:
         print(e)
         return False
@@ -118,28 +110,18 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "action",
-        help="Action type",
-        choices=KEY_ACTION_TYPES.keys(),
+        help="""Action type: `collect` and `send` are in-/output actions and
+            are mainly for testing purposes, `bridge` binds an in- to an
+            output(, and `filter` is like `bridge` but will allow a list
+            of manipulations on the go - not implemented yet..).
+            """,
+        choices=KEY_ACTION_TYPES,
     )
     parser.add_argument(
-        "-c", "--config", help="One file to rule them all.. (action and data)"
-    )
-    parser.add_argument(
-        "-a",
-        "--actiondir",
-        help="Directory containing action parameters (alternative: --config).",
-    )
-    parser.add_argument(
-        "-d",
-        "--datadir",
-        help="""Directory containing parameters describing the data
-            (alternative: --config).""",
-    )
-    parser.add_argument(
-        "-m",
-        "--moduledir",
-        help="""Directory containing compatible action modules
-            (alternative: --config).""",
+        "-c",
+        "--config",
+        help="""Central config file (mandatory).""",
+        required=True,
     )
     cwd = os.getcwd()
     parser.add_argument(
@@ -150,20 +132,8 @@ if __name__ == "__main__":
         default=cwd,
     )
     args = parser.parse_args()
-    # TODO       filter_name = ""
     # the action defines the mode to run in
     action_name = args.action
-
-    # prepare the data and action dirs
-    data_config_dir = ""
-    action_config_dir = ""
-    action_module_dir = ""
-    if args.datadir:
-        data_config_dir = args.datadir
-    if args.actiondir:
-        action_config_dir = args.actiondir
-    if args.moduledir:
-        action_module_dir = args.moduledir
     # args.workdir defaults to `cwd` if not set
     cfg_dir = args.workdir
     if not os.path.isdir(cfg_dir):
@@ -178,90 +148,15 @@ if __name__ == "__main__":
             cfg = load_config(args.config, cfg_dir)
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        ac = KEY_ACTION_TYPES[action_name]
-        #
-        if ac in cfg and cfg[ac]:
-            # The action config directory may not be passed on the CLI
-            # AND in the config at the same time..
-            if action_config_dir:
-                print(
-                    """The config is inconsistent, please use either the cli
-                        option or the config for the action dir."""
-                )
-                sys.exit(2)
-            action_config_dir = cfg[ac]
+        if isinstance(cfg["input"], str):
+            cfg["input"] = load_config(cfg["input"], cfg_dir)
+        if isinstance(cfg["output"], str):
+            cfg["output"] = load_config(cfg["output"], cfg_dir)
+        if isinstance(cfg["data"], str):
+            cfg["data"] = load_config(cfg["data"], cfg_dir)
 
-        if action_name in cfg and cfg[action_name]:
-            # Testing again:
-            # It is considered illegal to have both, an action config
-            # file AND an action configuration at the same time..
-            if action_config_dir:
-                print(
-                    f"""The config is inconsistent, please use either cli,
-                        split or single file configs, i.e. either '{ac}'
-                        OR '{action_name}' in '{cfg_dir}'"""
-                )
-                sys.exit(4)
-            # if the action has a config and thus only one action is to be
-            # processed, let's do it..
-            run_module(action_name, cfg)
-            sys.exit(0)  # all done here..
-
-        # if still here, try to find the path to the action configs
-        if not action_config_dir.startswith("/"):
-            action_config_dir = cfg_dir + "/" + action_config_dir
-        if not os.path.isdir(action_config_dir):
-            print(
-                f"""The specified config file dir '{action_config_dir}'
-                is not a directory.."""
-            )
-            sys.exit(4)
-
-        for f in os.listdir(action_config_dir):
-            # every sub-config file will trigger a separate action
-            if f.startswith("."):
-                # ignore hidden files
-                continue
-            # load the contents from file and override the action into config
-            cfg[action_name] = load_config(action_config_dir + "/" + f)
-            # search for the relevant data config
-            data_file_name = cfg[action_name][KEY_DATA_CONFIG_FILE]
-            if data_file_name:
-                if KEY_DATA_CONFIG in cfg and cfg[KEY_DATA_CONFIG]:
-                    print(
-                        f"""There already was something in the
-                        '{KEY_DATA_CONFIG}' section, but also
-                        '{KEY_CONFIG_DATASET}' was specified."""
-                    )
-                    sys.exit(6)
-                if not data_file_name.startswith("/"):
-                    data_file_name = join(
-                        cfg[KEY_CONFIG_DATASET],
-                        data_file_name,
-                    )
-                if not cfg[KEY_CONFIG_DATASET].startswith("/"):
-                    data_file_name = cfg_dir + "/" + data_file_name
-                # if the data had a config file defined, get it's content
-                cfg[KEY_DATA_CONFIG] = load_config(data_file_name)
-            else:
-                print(
-                    f"""Please either specify '{KEY_CONFIG_DATASET}'
-                    or '{KEY_DATA_CONFIG_FILE}'"""
-                )
-                sys.exit(6)
-            if (
-                KEY_ACTION_MODULE_NAME not in cfg
-                or not cfg[KEY_ACTION_MODULE_NAME]
-            ):
-                action_module_dir = (
-                    DEFAULT_ACTION_MODULE_PATH + "/" + action_name
-                )
-                if not action_module_dir.startswith("/"):
-                    action_module_dir = args.workdir + "/" + action_module_dir
-            if KEY_ACTION_MODULE_PATH in cfg and cfg[KEY_ACTION_MODULE_PATH]:
-                action_module_dir = cfg[KEY_ACTION_MODULE_PATH]
-            # let's do the work
-            run_module(action_name, cfg)
+        run_module("input", cfg)
+        sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(e)
         sys.exit(2)
