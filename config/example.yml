@@ -1,7 +1,13 @@
 
-extend_python_path: []
-config_collector: "config/collect.d/example/"
-config_dataset: "config/data.d/example/"
-config_sender: "config/send.d/example/"
+#extend_python_path: []
 
+input: "config/collect.d/example/example.yml"
+output: ""
+  #"config/send.d/example/example.yml"
+
+data: "config/data.d/example/example.yml"
+
+#filter: []
+
+#async: False
 

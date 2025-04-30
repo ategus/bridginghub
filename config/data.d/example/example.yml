@@ -1,0 +1,12 @@
+
+timestamp_name: "timestamp"
+value_register_map:
+  0:
+    id: 'test0'
+    type: ''
+    unit: ''
+  1:
+    id: 'test1'
+    type: ''
+    unit: ''
+

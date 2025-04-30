@@ -1,0 +1,5 @@
+
+module_path: "module.collect.stdin_collector"
+module_class_name: "StdinCollector"
+
+
