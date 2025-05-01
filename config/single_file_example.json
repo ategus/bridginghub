@@ -1,11 +1,18 @@
 
 {
-    "config_collector": "",
-    "config_dataset": "",
-    "config_sender": "",
-    "collect": [ { "TODO": "Add an example" } ],
-    "send": [ { "TODO": "Add an example" } ],
-    "data": [ { "TODO": "Add an example" } ]
+    "input": {
+        "module_path": "module.collect.stdin_collector",
+        "module_class_name": "StdinCollector"
+    },
+    "output": {
+        "timestamp_name": "timestamp",
+        "value_register_map": {
+            "0": {
+                "id": "test0"
+            }
+        }
+    },
+    "data": {}
 }
 
 

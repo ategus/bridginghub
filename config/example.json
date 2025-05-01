@@ -1,8 +1,8 @@
 
 {
-    "config_collector": "collect.d/example/",
-    "config_dataset": "data.d/example/",
-    "config_sender": "send.d/example/"
+    "input": "config/collect.d/example/example.yml",
+    "output": "",
+    "data": "config/data.d/example/example.yml"
 }
 
 
