@@ -85,13 +85,19 @@ def load_config(filename, workdir="") -> dict:
     return j
 
 
-def load_module(module_name, config) -> BridgingHubBaseModule:
+def load_module(action_name, config) -> BridgingHubBaseModule:
+    """Wrapper to load all modulues uniformely (and no-brain-ly).
+
+    :param str action_name: The name/type to register the module with
+    :param config config: The parameter map that was read from file
+    :rtype: BridgingHubBaseModule
+    :return: Return the requested module"""
     BridgingHubModuleRegistry.register_module(
-        config[module_name][KEY_ACTION_MODULE_NAME],
-        config[module_name][KEY_ACTION_MODULE_PATH],
+        config[action_name][KEY_ACTION_MODULE_NAME],
+        config[action_name][KEY_ACTION_MODULE_PATH],
     )
     m = BridgingHubModuleRegistry.load_module(
-        config[module_name][KEY_ACTION_MODULE_NAME]
+        config[action_name][KEY_ACTION_MODULE_NAME]
     )
     m.configure(config)
     return m
