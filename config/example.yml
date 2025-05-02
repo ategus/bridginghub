@@ -2,12 +2,22 @@
 #extend_python_path: []
 
 input: "config/collect.d/example/example.yml"
-output: ""
+output: "config/send.d/example/example.yml"
   #"config/send.d/example/example.yml"
 
-data: "config/data.d/example/example.yml"
+storage:
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  cache: "/tmp/bridgingHubTest/new"
+  junk: "/tmp/bridgingHubTest/junk"
+  archive: "/tmp/bridgingHubTest/archive"
 
-#filter: []
+filter:
+  pre: # not implemented yet
+  main: # not implemented yet
+  post: # not implemented yet
+
+data: "config/data.d/example/example.yml"
 
 #async: False
 
