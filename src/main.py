@@ -18,22 +18,6 @@ from bridging_hub_module import (
     StorageBaseModule,
 )
 
-KEY_BRIDGE = "bridge"
-KEY_COLLECT = "collect"
-KEY_DATA = "data"
-KEY_INPUT = "input"
-KEY_OUTPUT = "output"
-KEY_SEND = "send"
-KEY_STORAGE = "storage"
-
-KEY_ACTION_TYPES = [KEY_BRIDGE, KEY_COLLECT, KEY_SEND]
-
-KEY_ACTION_MODULE_NAME = "module_class_name"
-KEY_ACTION_MODULE_PATH = "module_path"
-
-# the default relative path for modules
-DEFAULT_ACTION_MODULE_PATH = "module"
-
 
 class IllegalFileOperation(Exception):
     """Custom Error to be raised on illegal file operations in order
@@ -93,11 +77,11 @@ def load_module(action_name, config) -> BridgingHubBaseModule:
     :rtype: BridgingHubBaseModule
     :return: Return the requested module"""
     BridgingHubModuleRegistry.register_module(
-        config[action_name][KEY_ACTION_MODULE_NAME],
-        config[action_name][KEY_ACTION_MODULE_PATH],
+        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME],
+        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_PATH],
     )
     m = BridgingHubModuleRegistry.load_module(
-        config[action_name][KEY_ACTION_MODULE_NAME]
+        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
     )
     m.configure(config)
     return m
@@ -116,26 +100,35 @@ def run_module(action_name, config) -> bool:
         m: BridgingHubBaseModule | None = None
         s: BridgingHubBaseModule | None = None
         if (
-            KEY_STORAGE in config
-            and config[KEY_STORAGE]
-            and KEY_ACTION_MODULE_NAME in config[KEY_STORAGE]
-            and config[KEY_STORAGE][KEY_ACTION_MODULE_NAME]
+            BridgingHubBaseModule.KEY_STORAGE in config
+            and config[BridgingHubBaseModule.KEY_STORAGE]
+            and BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
+            in config[BridgingHubBaseModule.KEY_STORAGE]
+            and config[BridgingHubBaseModule.KEY_STORAGE][
+                BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
+            ]
         ):
-            s = load_module(KEY_STORAGE, config)
+            s = load_module(BridgingHubBaseModule.KEY_STORAGE, config)
 
         # Load input module on request by action or default to data
-        if action_name == KEY_BRIDGE or action_name == KEY_INPUT:
-            m = load_module(KEY_INPUT, config)
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_INPUT
+        ):
+            m = load_module(BridgingHubBaseModule.KEY_INPUT, config)
             ri = m.run()
             if isinstance(s, StorageBaseModule):
                 rc = s.write_cache(ri)
         else:
-            ri = config[KEY_DATA]
+            ri = config[BridgingHubBaseModule.KEY_DATA]
             if isinstance(s, StorageBaseModule):
                 rc = s.read_cache()
         ro = None
-        if action_name == KEY_BRIDGE or action_name == KEY_OUTPUT:
-            m = load_module(KEY_OUTPUT, config)
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_OUTPUT
+        ):
+            m = load_module(BridgingHubBaseModule.KEY_OUTPUT, config)
             ro = m.run()
         else:
             if ri:
@@ -172,7 +165,7 @@ if __name__ == "__main__":
             while `bridge` binds an in- to an output channel (optionally
             storing and filtering the content on the go).
             """,
-        choices=KEY_ACTION_TYPES,
+        choices=BridgingHubBaseModule.KEY_ACTION_TYPES,
     )
     parser.add_argument(
         "-c",
@@ -205,14 +198,20 @@ if __name__ == "__main__":
             cfg = load_config(args.config, cfg_dir)
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        if isinstance(cfg[KEY_INPUT], str):
-            cfg[KEY_INPUT] = load_config(cfg[KEY_INPUT], cfg_dir)
-        if isinstance(cfg[KEY_OUTPUT], str):
-            cfg[KEY_OUTPUT] = load_config(cfg[KEY_OUTPUT], cfg_dir)
-        if isinstance(cfg[KEY_DATA], str):
-            cfg[KEY_DATA] = load_config(cfg[KEY_DATA], cfg_dir)
+        if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
+            cfg[BridgingHubBaseModule.KEY_INPUT] = load_config(
+                cfg[BridgingHubBaseModule.KEY_INPUT], cfg_dir
+            )
+        if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
+            cfg[BridgingHubBaseModule.KEY_OUTPUT] = load_config(
+                cfg[BridgingHubBaseModule.KEY_OUTPUT], cfg_dir
+            )
+        if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
+            cfg[BridgingHubBaseModule.KEY_DATA] = load_config(
+                cfg[BridgingHubBaseModule.KEY_DATA], cfg_dir
+            )
 
-        run_module(KEY_INPUT, cfg)
+        run_module(BridgingHubBaseModule.KEY_INPUT, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(e)

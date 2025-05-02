@@ -44,6 +44,29 @@ class BridgingHubBaseModule(ABC):
     Abstract base class for all action modules.
     """
 
+    KEY_BRIDGE: str = "bridge"
+    KEY_COLLECT: str = "collect"
+    KEY_DATA: str = "data"
+    KEY_INPUT: str = "input"
+    KEY_OUTPUT: str = "output"
+    KEY_SEND: str = "send"
+    KEY_STORAGE: str = "storage"
+
+    KEY_ACTION_TYPES = [
+        KEY_BRIDGE,
+        KEY_COLLECT,
+        KEY_SEND,
+    ]
+
+    KEY_ACTION_MODULE_NAME = "module_class_name"
+    KEY_ACTION_MODULE_PATH = "module_path"
+
+    KEY_TIMESTAMP_NAME = "timestamp_name"
+    KEY_VALUE_NAME = "value_name"
+
+    # the default relative path for modules"
+    DEFAULT_ACTION_MODULE_PATH = "module"
+
     # The action type this modules belongs to.
     # These are the (possible) candidates:
     # * collect (standard - synchronous input action)
@@ -88,8 +111,11 @@ class BridgingHubBaseModule(ABC):
             if k in config and config[k]:
                 self._custom_name = config[k]
         # init the _data from value_register_map for adding values later
-        if "data" in config and config["data"]:
-            self._data = config["data"]
+        if (
+            BridgingHubBaseModule.KEY_DATA in config
+            and config[BridgingHubBaseModule.KEY_DATA]
+        ):
+            self._data = config[BridgingHubBaseModule.KEY_DATA]
         else:
             raise BrokenConfigException(
                 "No 'data' section found in the config."
@@ -156,7 +182,7 @@ class CollectorBaseModule(BridgingHubBaseModule):
     Abstract base collector module used by input modules.
     """
 
-    _action_type: str = "input"
+    _action_type: str = BridgingHubBaseModule.KEY_INPUT
 
     def run(self):
         return self.collect()
@@ -171,7 +197,7 @@ class SenderBaseModule(BridgingHubBaseModule):
     Abstract base sender module used by output modules.
     """
 
-    _action_type: str = "output"
+    _action_type: str = BridgingHubBaseModule.KEY_OUTPUT
 
     def run(self):
         return self.send()
@@ -188,7 +214,7 @@ class StorageBaseModule(BridgingHubBaseModule):
     Abstract base storage module. There is only one type of storage modules.
     """
 
-    _action_type: str = "storage"
+    _action_type: str = BridgingHubBaseModule.KEY_STORAGE
 
     def run(self):
         """Not used here."""

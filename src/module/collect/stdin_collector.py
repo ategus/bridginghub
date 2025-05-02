@@ -25,8 +25,8 @@ class StdinCollector(CollectorBaseModule):
                 k = d.pop()
                 r[k] = {}
                 n = str(self.current_timestamp())
-                r[k][self._custom_name["timestamp_name"]] = n
-                r[k][self._custom_name["value_name"]] = line
+                r[k][self._custom_name[StdinCollector.KEY_TIMESTAMP_NAME]] = n
+                r[k][self._custom_name[StdinCollector.KEY_VALUE_NAME]] = line
                 if len(d) == 0:
                     break
         except Exception as e:
