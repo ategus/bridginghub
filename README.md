@@ -15,6 +15,22 @@ any standard Python environment.
 Its framework-like, extensible module infrastructure makes it easy to
 configure and adapt to a wide range of use cases.
 
+## Overview
+
+The bridge character can be visualized by the folloing chain and its
+corresponding module groups/types:
+
+```
+                    tmpSTORAGE                                  longSTORAGE
+                    #write_cache                                #write_junk
+                    #read_cache                                 #write_archive
+        preFILTER               mainFILTER          postFILTER
+        #jinja                  #jinja              #jinja
+        #validate
+INPUT                                       OUTPUT
+#collect                                    #send
+#consume                                    #produce
+```
 
 ## Setup
 
