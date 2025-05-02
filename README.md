@@ -38,11 +38,11 @@ INPUT                                       OUTPUT
 
 #### Minimal Setup
 
-  * python >3.10
+  * python >=3.10
 
 #### User Installation
 
-  * python >3.10
+  * python >=3.10
   * pip
 
 #### Development
