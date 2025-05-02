@@ -10,9 +10,6 @@ class StdinCollector(CollectorBaseModule):
     Read from stdin and return the result.
     """
 
-    def __init__(self):
-        self._element = None
-
     def collect(self) -> dict[str, dict[str, str]]:
         r: dict[str, dict[str, str]] = {}
         d = list(self._data["value_register_map"])
