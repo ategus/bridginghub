@@ -6,11 +6,15 @@ class DefaultStorageModule(StorageBaseModule):
     Message content can be cached and archived or broken messages identified.
     """
 
-    def cache(
+    def write_cache(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Remember message content between in- and output."""
         return message
+
+    def read_cache(self) -> dict[str, dict[str, str]]:
+        """Look up message content between in- and output."""
+        return {}
 
     def clean_cache(
         self, message: dict[str, dict[str, str]]

@@ -2,15 +2,20 @@
 
 import sys
 
-from bridging_hub_module import CollectorBaseModule
+from bridging_hub_module import CollectorBaseModule, InputModuleException
 
 
 class StdinCollector(CollectorBaseModule):
     """
-    Read from stdin and return the result.
+    Input module that combines info from Stdin with data configuration.
     """
 
     def collect(self) -> dict[str, dict[str, str]]:
+        """Read from stdin and return the result.
+
+        :rtype: dict
+        :return: mapping of the input info
+        :raise InputModuleError:"""
         r: dict[str, dict[str, str]] = {}
         d = list(self._data["value_register_map"])
         try:
@@ -19,10 +24,13 @@ class StdinCollector(CollectorBaseModule):
             for line in sys.stdin:
                 k = d.pop()
                 r[k] = {}
-                n = self.current_timestamp()
+                n = str(self.current_timestamp())
                 r[k][self._custom_name["timestamp_name"]] = n
                 r[k][self._custom_name["value_name"]] = line
-        except IndexError:
-            # latest configured element reached
-            pass
+                if len(d) == 0:
+                    break
+        except Exception as e:
+            raise InputModuleException(
+                f"An error occurred during reading input: {e}"
+            )
         return r

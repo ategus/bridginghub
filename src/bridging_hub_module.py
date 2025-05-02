@@ -31,6 +31,14 @@ class BrokenConfigException(Exception):
     pass
 
 
+class InputModuleException(Exception):
+    """
+    Exception to be thrown on errors while reading input.
+    """
+
+    pass
+
+
 class BridgingHubBaseModule(ABC):
     """
     Abstract base class for all action modules.
@@ -187,10 +195,15 @@ class StorageBaseModule(BridgingHubBaseModule):
         pass
 
     @abstractmethod
-    def cache(
+    def write_cache(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Remember message content between in- and output."""
+        pass
+
+    @abstractmethod
+    def read_cache(self) -> dict[str, dict[str, str]]:
+        """Look up message content between in- and output."""
         pass
 
     @abstractmethod

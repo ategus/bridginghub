@@ -112,28 +112,40 @@ def run_module(action_name, config) -> bool:
     :return: Report success/failure and leave the rest to the caller"""
     try:
         # TODO testing here..
+        # Load the storage module on request by config
+        m: BridgingHubBaseModule | None = None
+        s: BridgingHubBaseModule | None = None
+        if (
+            KEY_STORAGE in config
+            and config[KEY_STORAGE]
+            and KEY_ACTION_MODULE_NAME in config[KEY_STORAGE]
+            and config[KEY_STORAGE][KEY_ACTION_MODULE_NAME]
+        ):
+            s = load_module(KEY_STORAGE, config)
+
+        # Load input module on request by action or default to data
         if action_name == KEY_BRIDGE or action_name == KEY_INPUT:
             m = load_module(KEY_INPUT, config)
             ri = m.run()
-            s = None
-            if (
-                KEY_STORAGE in config
-                and config[KEY_STORAGE]
-                and KEY_ACTION_MODULE_NAME in config[KEY_STORAGE]
-                and config[KEY_STORAGE][KEY_ACTION_MODULE_NAME]
-            ):
-                s = load_module(KEY_STORAGE, config)
-                assert isinstance(s, StorageBaseModule)
-                rc = s.cache(ri)
-
+            if isinstance(s, StorageBaseModule):
+                rc = s.write_cache(ri)
+        else:
+            ri = config[KEY_DATA]
+            if isinstance(s, StorageBaseModule):
+                rc = s.read_cache()
+        ro = None
         if action_name == KEY_BRIDGE or action_name == KEY_OUTPUT:
             m = load_module(KEY_OUTPUT, config)
             ro = m.run()
-            print(ri)
-            print(ro)
-            print(rc)
-            if s:
-                pass
+        else:
+            if ri:
+                print("Info from input: ", ri)
+            if rc:
+                print("Info from cache: ", rc)
+        if s:
+            if ro:
+                print("Info from output:", ro)
+            pass
 
     # TODO:
     # input -> prefilter -> cache -> filter -> output -> postfilter -> store
