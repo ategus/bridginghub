@@ -11,12 +11,22 @@ import sys
 from os.path import join
 
 from bridging_hub_module import (
+    BridgingHubBaseModule,
     BridgingHubModuleRegistry,
     DuplicatedModuleException,
     NoSuchModuleException,
+    StorageBaseModule,
 )
 
-KEY_ACTION_TYPES = ["bridge", "collect", "filter", "send"]
+KEY_BRIDGE = "bridge"
+KEY_COLLECT = "collect"
+KEY_DATA = "data"
+KEY_INPUT = "input"
+KEY_OUTPUT = "output"
+KEY_SEND = "send"
+KEY_STORAGE = "storage"
+
+KEY_ACTION_TYPES = [KEY_BRIDGE, KEY_COLLECT, KEY_SEND]
 
 KEY_ACTION_MODULE_NAME = "module_class_name"
 KEY_ACTION_MODULE_PATH = "module_path"
@@ -75,6 +85,18 @@ def load_config(filename, workdir="") -> dict:
     return j
 
 
+def load_module(module_name, config) -> BridgingHubBaseModule:
+    BridgingHubModuleRegistry.register_module(
+        config[module_name][KEY_ACTION_MODULE_NAME],
+        config[module_name][KEY_ACTION_MODULE_PATH],
+    )
+    m = BridgingHubModuleRegistry.load_module(
+        config[module_name][KEY_ACTION_MODULE_NAME]
+    )
+    m.configure(config)
+    return m
+
+
 def run_module(action_name, config) -> bool:
     """Execute a module using the parameters found in the config.
 
@@ -84,18 +106,36 @@ def run_module(action_name, config) -> bool:
     :return: Report success/failure and leave the rest to the caller"""
     try:
         # TODO testing here..
-        BridgingHubModuleRegistry.register_module(
-            config[action_name][KEY_ACTION_MODULE_NAME],
-            config[action_name][KEY_ACTION_MODULE_PATH],
-        )
-        f = BridgingHubModuleRegistry.load_module(
-            config[action_name][KEY_ACTION_MODULE_NAME]
-        )
-        f.configure(config)
-        f.run()
-        # TODO input -> filter -> output
+        if action_name == KEY_BRIDGE or action_name == KEY_INPUT:
+            m = load_module(KEY_INPUT, config)
+            ri = m.run()
+            s = None
+            if (
+                KEY_STORAGE in config
+                and config[KEY_STORAGE]
+                and KEY_ACTION_MODULE_NAME in config[KEY_STORAGE]
+                and config[KEY_STORAGE][KEY_ACTION_MODULE_NAME]
+            ):
+                s = load_module(KEY_STORAGE, config)
+                assert isinstance(s, StorageBaseModule)
+                rc = s.cache(ri)
+
+        if action_name == KEY_BRIDGE or action_name == KEY_OUTPUT:
+            m = load_module(KEY_OUTPUT, config)
+            ro = m.run()
+            print(ri)
+            print(ro)
+            print(rc)
+            if s:
+                pass
+
+    # TODO:
+    # input -> prefilter -> cache -> filter -> output -> postfilter -> store
     except (NoSuchModuleException, DuplicatedModuleException) as e:
         print(e)
+        return False
+    except AssertionError as e:
+        print("Wrong type of module loaded", e)
         return False
     return True
     # TODO how shall we exit eventually? Clean up should be done in the
@@ -110,10 +150,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "action",
-        help="""Action type: `collect` and `send` are in-/output actions and
-            are mainly for testing purposes, `bridge` binds an in- to an
-            output(, and `filter` is like `bridge` but will allow a list
-            of manipulations on the go - not implemented yet..).
+        help="""Action type: `collect` and `send` are in-/output only actions,
+            while `bridge` binds an in- to an output channel (optionally
+            storing and filtering the content on the go).
             """,
         choices=KEY_ACTION_TYPES,
     )
@@ -148,14 +187,14 @@ if __name__ == "__main__":
             cfg = load_config(args.config, cfg_dir)
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        if isinstance(cfg["input"], str):
-            cfg["input"] = load_config(cfg["input"], cfg_dir)
-        if isinstance(cfg["output"], str):
-            cfg["output"] = load_config(cfg["output"], cfg_dir)
-        if isinstance(cfg["data"], str):
-            cfg["data"] = load_config(cfg["data"], cfg_dir)
+        if isinstance(cfg[KEY_INPUT], str):
+            cfg[KEY_INPUT] = load_config(cfg[KEY_INPUT], cfg_dir)
+        if isinstance(cfg[KEY_OUTPUT], str):
+            cfg[KEY_OUTPUT] = load_config(cfg[KEY_OUTPUT], cfg_dir)
+        if isinstance(cfg[KEY_DATA], str):
+            cfg[KEY_DATA] = load_config(cfg[KEY_DATA], cfg_dir)
 
-        run_module("input", cfg)
+        run_module(KEY_INPUT, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(e)
