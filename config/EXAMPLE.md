@@ -1,5 +1,18 @@
 # Example Config
 
+TODO: rewrite this part!
+
+BRIDGE:
+
+                    tmpSTORAGE                                  longSTORAGE
+        preFILTER               mainFILTER          postFILTER
+INPUT                                       OUTPUT
+
+collect validate    cache                   send    compare     junk/archive
+consume jinja                   jinja       produce jinja
+
+# deprecated
+
 ## Preamble
 
 *tl;dr?* Note at least the title layout!
