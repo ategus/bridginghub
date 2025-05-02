@@ -3,7 +3,6 @@
 
 input: "config/collect.d/example/example.yml"
 output: "config/send.d/example/example.yml"
-  #"config/send.d/example/example.yml"
 
 storage:
   module_path: "module.storage.default_storage"
