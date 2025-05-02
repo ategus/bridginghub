@@ -1,5 +1,9 @@
 # bridgingHub
 
+## Status
+
+* N O T   R E A D Y   Y E T ! *
+
 ## Description
 
 **bridgingHub** connects different data endpoints in a flexible and modular
