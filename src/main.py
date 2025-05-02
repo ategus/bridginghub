@@ -109,7 +109,7 @@ def run_module(action_name, config) -> bool:
             ]
         ):
             s = load_module(BridgingHubBaseModule.KEY_STORAGE, config)
-
+        print(action_name)
         # Load input module on request by action or default to data
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
@@ -211,7 +211,7 @@ if __name__ == "__main__":
                 cfg[BridgingHubBaseModule.KEY_DATA], cfg_dir
             )
 
-        run_module(BridgingHubBaseModule.KEY_INPUT, cfg)
+        run_module(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(e)
