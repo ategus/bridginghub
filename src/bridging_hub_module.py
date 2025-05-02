@@ -45,17 +45,15 @@ class BridgingHubBaseModule(ABC):
     """
 
     KEY_BRIDGE: str = "bridge"
-    KEY_COLLECT: str = "collect"
     KEY_DATA: str = "data"
     KEY_INPUT: str = "input"
     KEY_OUTPUT: str = "output"
-    KEY_SEND: str = "send"
     KEY_STORAGE: str = "storage"
 
     KEY_ACTION_TYPES = [
         KEY_BRIDGE,
-        KEY_COLLECT,
-        KEY_SEND,
+        KEY_INPUT,
+        KEY_OUTPUT,
     ]
 
     KEY_ACTION_MODULE_NAME = "module_class_name"
