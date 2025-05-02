@@ -145,7 +145,7 @@ class BridgingHubModuleRegistry:
 
 class CollectorBaseModule(BridgingHubBaseModule):
     """
-    Abstract base collector module that can be extended.
+    Abstract base collector module used by input modules.
     """
 
     _action_type: str = "input"
@@ -160,7 +160,7 @@ class CollectorBaseModule(BridgingHubBaseModule):
 
 class SenderBaseModule(BridgingHubBaseModule):
     """
-    Abstract base sender module that can be extended.
+    Abstract base sender module used by output modules.
     """
 
     _action_type: str = "output"
@@ -169,5 +169,40 @@ class SenderBaseModule(BridgingHubBaseModule):
         return self.send()
 
     @abstractmethod
-    def send(self, message: dict[str, dict[str, str]]) -> None:
+    def send(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        pass
+
+
+class StorageBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base storage module. There is only one type of storage modules.
+    """
+
+    _action_type: str = "storage"
+
+    def run(self):
+        """Not used here."""
+        pass
+
+    @abstractmethod
+    def cache(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Remember message content between in- and output."""
+        pass
+
+    @abstractmethod
+    def clean_cache(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Clean up the files remembered between in- and output."""
+        pass
+
+    @abstractmethod
+    def store(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Remember message content after output."""
         pass
