@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 from bridging_hub_module import BrokenConfigException, StorageBaseModule
 
@@ -69,7 +70,14 @@ class DefaultStorageModule(StorageBaseModule):
 
     def read_cache(self) -> dict[str, dict[str, str]]:
         """Look up message content between in- and output."""
-        return {}
+        d = self.test_dir(DefaultStorageModule.KEY_CACHE)
+        m: dict[str, dict[str, str]] = {}
+        if d:
+            for k in self._data:
+                for p in Path(d).glob("*" + "_" + k + ".json"):
+                    with open(p, "r") as f:
+                        m[k] = json.load(f)
+        return m
 
     def clean_cache(
         self, message: dict[str, dict[str, str]]
