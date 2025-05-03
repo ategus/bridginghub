@@ -109,27 +109,34 @@ def run_module(action_name, config) -> bool:
             ]
         ):
             s = load_module(BridgingHubBaseModule.KEY_STORAGE, config)
-        print(action_name)
+
         # Load input module on request by action or default to data
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_INPUT
         ):
             m = load_module(BridgingHubBaseModule.KEY_INPUT, config)
-            ri = m.run()
+            # get the infos from input
+            ri = m.input()
             if isinstance(s, StorageBaseModule):
+                # write input to cache and return cached items
                 rc = s.write_cache(ri)
         else:
-            ri = config[BridgingHubBaseModule.KEY_DATA]
             if isinstance(s, StorageBaseModule):
+                # w/o input, just read from cache
                 rc = s.read_cache()
+                ri = rc
+            else:
+                # w/o input and cache, just load the config
+                ri = config[BridgingHubBaseModule.KEY_DATA]
+                rc = ri
         ro = None
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
         ):
             m = load_module(BridgingHubBaseModule.KEY_OUTPUT, config)
-            ro = m.run()
+            ro = m.output(rc)
         else:
             if ri:
                 print("Info from input: ", ri)
@@ -218,10 +225,6 @@ if __name__ == "__main__":
     except IllegalFileOperation as e:
         print(e)
         sys.exit(2)
-    except SystemExit as e:
-        # TODO: after refactoring, raise and catch and exit from here now
-        print(f"TODO... {e}")
-        sys.exit(98)
     except Exception as e:
         print(f"Last resort error... {e}")
         sys.exit(99)

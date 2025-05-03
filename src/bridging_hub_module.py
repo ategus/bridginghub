@@ -95,7 +95,13 @@ class BridgingHubBaseModule(ABC):
     _action_detail: dict[str, str] = {}
 
     @abstractmethod
-    def run(self) -> dict:
+    def input(self) -> dict[str, dict[str, str]]:
+        pass
+
+    @abstractmethod
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
         pass
 
     def configure(self, config: dict) -> None:
@@ -182,8 +188,16 @@ class CollectorBaseModule(BridgingHubBaseModule):
 
     _action_type: str = BridgingHubBaseModule.KEY_INPUT
 
-    def run(self):
+    def input(self) -> dict[str, dict[str, str]]:
         return self.collect()
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This input module was configured in output."
+        )
+        return {}
 
     @abstractmethod
     def collect(self) -> dict[str, dict[str, str]]:
@@ -197,8 +211,16 @@ class SenderBaseModule(BridgingHubBaseModule):
 
     _action_type: str = BridgingHubBaseModule.KEY_OUTPUT
 
-    def run(self):
-        return self.send()
+    def input(self) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This output module was configured in input."
+        )
+        return {}
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        return self.send(message)
 
     @abstractmethod
     def send(
@@ -214,9 +236,19 @@ class StorageBaseModule(BridgingHubBaseModule):
 
     _action_type: str = BridgingHubBaseModule.KEY_STORAGE
 
-    def run(self):
-        """Not used here."""
-        pass
+    def input(self) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This storage module was configured in input."
+        )
+        return {}
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This storage module was configured in output."
+        )
+        return {}
 
     @abstractmethod
     def write_cache(
