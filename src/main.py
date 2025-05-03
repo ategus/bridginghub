@@ -10,10 +10,12 @@ import os
 import sys
 from os.path import join
 
-from bridging_hub_module import (
+from bridging_hub_module import (  # InputModuleException,
     BridgingHubBaseModule,
     BridgingHubModuleRegistry,
+    BrokenConfigException,
     DuplicatedModuleException,
+    InputModuleException,
     NoSuchModuleException,
     StorageBaseModule,
 )
@@ -99,6 +101,9 @@ def run_module(action_name, config) -> bool:
         # Load the storage module on request by config
         m: BridgingHubBaseModule | None = None
         s: BridgingHubBaseModule | None = None
+        ri: dict[str, dict[str, str]] = {}
+        rc: dict[str, dict[str, str]] = {}
+        ro: dict[str, dict[str, str]] = {}
         if (
             BridgingHubBaseModule.KEY_STORAGE in config
             and config[BridgingHubBaseModule.KEY_STORAGE]
@@ -130,7 +135,6 @@ def run_module(action_name, config) -> bool:
                 # w/o input and cache, just load the config
                 ri = config[BridgingHubBaseModule.KEY_DATA]
                 rc = ri
-        ro = None
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
@@ -142,10 +146,13 @@ def run_module(action_name, config) -> bool:
                 print("Info from input: ", ri)
             if rc:
                 print("Info from cache: ", rc)
-        if s:
+        if "verbose" in config and config["verbose"] == "True":
+            if ri:
+                print("Info from input: ", ri)
+            if rc:
+                print("Info from cache: ", rc)
             if ro:
                 print("Info from output:", ro)
-            pass
 
     # TODO:
     # input -> prefilter -> cache -> filter -> output -> postfilter -> store
@@ -188,6 +195,12 @@ if __name__ == "__main__":
             (default: `cwd`).""",
         default=cwd,
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="""Be more explicit on what happens.""",
+    )
     args = parser.parse_args()
     # the action defines the mode to run in
     action_name = args.action
@@ -203,6 +216,13 @@ if __name__ == "__main__":
         if args.config:
             # get the config from the location provided by the user
             cfg = load_config(args.config, cfg_dir)
+        if "verbose" in cfg and cfg["verbose"]:
+            if cfg["verbose"] != "True" or cfg["verbose"] != "False":
+                raise BrokenConfigException(
+                    "The 'verbose' parameter is reserved, see flag '--verbose'"
+                )
+        if args.verbose:
+            cfg["verbose"] = "True"
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
         if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
@@ -225,6 +245,14 @@ if __name__ == "__main__":
     except IllegalFileOperation as e:
         print(e)
         sys.exit(2)
+    except (
+        DuplicatedModuleException,
+        NoSuchModuleException,
+        BrokenConfigException,
+        InputModuleException,
+    ) as e:
+        print("The following error occurred:", e)
+        sys.exit(98)
     except Exception as e:
         print(f"Last resort error... {e}")
         sys.exit(99)
