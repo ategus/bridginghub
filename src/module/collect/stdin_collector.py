@@ -17,7 +17,7 @@ class StdinCollector(CollectorBaseModule):
         :return: mapping of the input info
         :raise InputModuleError:"""
         r: dict[str, dict[str, str]] = {}
-        d = list(self._data["value_register_map"])
+        d = list(self._data[StdinCollector.KEY_DATA_VALUE_MAP])
         try:
             # use only as many input lines as there are
             # data points defined in the config..

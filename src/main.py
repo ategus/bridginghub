@@ -130,17 +130,18 @@ def run_module(action_name, config) -> bool:
             if isinstance(s, StorageBaseModule):
                 # w/o input, just read from cache
                 rc = s.read_cache()
-                ri = rc
             else:
                 # w/o input and cache, just load the config
                 ri = config[BridgingHubBaseModule.KEY_DATA]
-                rc = ri
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
         ):
             m = load_module(BridgingHubBaseModule.KEY_OUTPUT, config)
-            ro = m.output(rc)
+            if ri:
+                ro = m.output(ri)
+            elif rc:
+                ro = m.output(rc)
         else:
             if ri:
                 print("Info from input: ", ri)

@@ -61,6 +61,7 @@ class BridgingHubBaseModule(ABC):
 
     KEY_TIMESTAMP_NAME = "timestamp_name"
     KEY_VALUE_NAME = "value_name"
+    KEY_DATA_VALUE_MAP = "value_register_map"
 
     # the default relative path for modules"
     DEFAULT_ACTION_MODULE_PATH = "module"
@@ -87,8 +88,7 @@ class BridgingHubBaseModule(ABC):
         "location_name": "location",
     }
 
-    # This will be filled with the 'value_register_map' on run init and
-    # the values on run time.
+    # This will be filled with the KEY_DATA_VALUE_MAP on run init
     _data: dict[str, dict] = {}
 
     # Store the config details related to the action type.
@@ -114,7 +114,7 @@ class BridgingHubBaseModule(ABC):
         for k in self._custom_name.keys():
             if k in config and config[k]:
                 self._custom_name = config[k]
-        # init the _data from value_register_map for adding values later
+        # init the _data
         if (
             BridgingHubBaseModule.KEY_DATA in config
             and config[BridgingHubBaseModule.KEY_DATA]

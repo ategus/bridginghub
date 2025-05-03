@@ -68,15 +68,28 @@ class DefaultStorageModule(StorageBaseModule):
                 m[k] = v
         return m
 
-    def read_cache(self) -> dict[str, dict[str, str]]:
-        """Look up message content between in- and output."""
+    def find_cached(self) -> dict[str, list[Path]]:
+        """Find messages hanging between in- and output.
+        :rtype: dict[str, list[Path]]
+        :return: A list of file paths per data entry"""
+        l: dict[str, list[Path]] = {}
         d = self.test_dir(DefaultStorageModule.KEY_CACHE)
-        m: dict[str, dict[str, str]] = {}
         if d:
-            for k in self._data:
-                for p in Path(d).glob("*" + "_" + k + ".json"):
-                    with open(p, "r") as f:
-                        m[k] = json.load(f)
+            for k in self._data[DefaultStorageModule.KEY_DATA_VALUE_MAP]:
+                l[k] = []
+            for k in self._data[DefaultStorageModule.KEY_DATA_VALUE_MAP]:
+                l[k] += Path(d).glob(f"*_{k}.json")
+        return l
+
+    def read_cache(self) -> dict[str, dict[str, str]]:
+        """Look up first message content hanging between in- and output.
+        :rtype: dict[str, dict[str, str]]
+        :return: the oldest message from cache"""
+        m: dict[str, dict[str, str]] = {}
+        c = self.find_cached()
+        for k in c:
+            with open(c[k][0], "r") as f:
+                m[k] = json.load(f)
         return m
 
     def clean_cache(
