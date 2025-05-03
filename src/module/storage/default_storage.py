@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 from bridging_hub_module import BrokenConfigException, StorageBaseModule
@@ -23,13 +22,11 @@ class DefaultStorageModule(StorageBaseModule):
         :return: whether directory was configured
         :raise: BrokenConfigException"""
         if dir_type in self._action_detail and self._action_detail[dir_type]:
-            if os.path.isabs(self._action_detail[dir_type]):
+            p = Path(self._action_detail[dir_type])
+            if p.is_absolute():
                 try:
-                    os.makedirs(
-                        self._action_detail[dir_type],
-                        exist_ok=True,
-                    )
-                    return self._action_detail[dir_type]
+                    p.mkdir(exist_ok=True, parents=True)
+                    return str(p)
                 except Exception as e:
                     raise BrokenConfigException(
                         f"""Directory {dir_type} was requested but failed:""",
@@ -50,20 +47,9 @@ class DefaultStorageModule(StorageBaseModule):
         m: dict[str, dict[str, str]] = {}
         if d:
             for k, v in message.items():
-                n = os.path.join(
-                    d,
-                    str(
-                        v[
-                            self._custom_name[
-                                StorageBaseModule.KEY_TIMESTAMP_NAME
-                            ]
-                        ]
-                    )
-                    + "_"
-                    + str(k)
-                    + ".json",
-                )
-                with open(n, "w") as f:
+                t = v[self._custom_name[StorageBaseModule.KEY_TIMESTAMP_NAME]]
+                p = Path(d) / (str(t) + "_" + str(k) + ".json")
+                with open(p, "w") as f:
                     json.dump(v, f)
                 m[k] = v
         return m
