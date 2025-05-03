@@ -30,6 +30,7 @@ corresponding module groups/types:
 INPUT                                       OUTPUT
 #collect                                    #send
 #consume                                    #produce
+                                            #cleanup            .cleanup
 ```
 
 ## Setup

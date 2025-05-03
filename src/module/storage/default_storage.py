@@ -101,5 +101,8 @@ class DefaultStorageModule(StorageBaseModule):
     def store(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
-        """Remember message content after output."""
+        """Remember message content after output.
+        :param message: the sent data to be compared to the cache
+        :rtype: dict[str, dict[str, str]]
+        :return: the messages processed"""
         return message

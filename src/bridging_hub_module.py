@@ -45,6 +45,7 @@ class BridgingHubBaseModule(ABC):
     """
 
     KEY_BRIDGE: str = "bridge"
+    KEY_CLEANUP: str = "cleanup"
     KEY_DATA: str = "data"
     KEY_INPUT: str = "input"
     KEY_OUTPUT: str = "output"
@@ -52,6 +53,7 @@ class BridgingHubBaseModule(ABC):
 
     KEY_ACTION_TYPES = [
         KEY_BRIDGE,
+        KEY_CLEANUP,
         KEY_INPUT,
         KEY_OUTPUT,
     ]

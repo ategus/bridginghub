@@ -104,6 +104,7 @@ def run_module(action_name, config) -> bool:
         ri: dict[str, dict[str, str]] = {}
         rc: dict[str, dict[str, str]] = {}
         ro: dict[str, dict[str, str]] = {}
+        re: dict[str, dict[str, str]] = {}
         if (
             BridgingHubBaseModule.KEY_STORAGE in config
             and config[BridgingHubBaseModule.KEY_STORAGE]
@@ -126,7 +127,7 @@ def run_module(action_name, config) -> bool:
             if isinstance(s, StorageBaseModule):
                 # write input to cache and return cached items
                 rc = s.write_cache(ri)
-        else:
+        elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
             if isinstance(s, StorageBaseModule):
                 # w/o input, just read from cache
                 rc = s.read_cache()
@@ -142,18 +143,33 @@ def run_module(action_name, config) -> bool:
                 ro = m.output(ri)
             elif rc:
                 ro = m.output(rc)
-        else:
+            print("rc:", rc)
+            if isinstance(s, StorageBaseModule):
+                # process current data mv timestamp_datakey.json from new
+                # to junk or archive
+                re = s.store(ro)
+                print(re)
+                pass
+            if "verbose" in config and config["verbose"] == "True":
+                if ri:
+                    print("Info from input: ", ri)
+                if rc:
+                    print("Info from cache: ", rc)
+                if ro:
+                    print("Info from output:", ro)
+        elif action_name == BridgingHubBaseModule.KEY_CLEANUP:
+            if isinstance(s, StorageBaseModule):
+                pass  # cleanup
+            else:
+                raise BrokenConfigException(
+                    "Action 'cleanup' only makes sense if "
+                    + "'storage' is configured."
+                )
+        else:  # action_name == BridgingHubBaseModule.KEY_INPUT:
             if ri:
                 print("Info from input: ", ri)
             if rc:
                 print("Info from cache: ", rc)
-        if "verbose" in config and config["verbose"] == "True":
-            if ri:
-                print("Info from input: ", ri)
-            if rc:
-                print("Info from cache: ", rc)
-            if ro:
-                print("Info from output:", ro)
 
     # TODO:
     # input -> prefilter -> cache -> filter -> output -> postfilter -> store
