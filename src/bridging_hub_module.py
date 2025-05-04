@@ -61,9 +61,15 @@ class BridgingHubBaseModule(ABC):
     KEY_ACTION_MODULE_NAME = "module_class_name"
     KEY_ACTION_MODULE_PATH = "module_path"
 
-    KEY_TIMESTAMP_NAME = "timestamp_name"
-    KEY_VALUE_NAME = "value_name"
     KEY_DATA_VALUE_MAP = "value_register_map"
+    KEY_GEOHASH_NAME = "geohash_name"
+    KEY_ID_NAME = "id_name"
+    KEY_LOCATION_NAME = "location_name"
+    KEY_STATUS_NAME = "status_name"
+    KEY_TIMESTAMP_NAME = "timestamp_name"
+    KEY_TYPE_NAME = "type_name"
+    KEY_VALUE_NAME = "value_name"
+    KEY_UNIT_NAME = "unit_name"
 
     # the default relative path for modules"
     DEFAULT_ACTION_MODULE_PATH = "module"
@@ -83,11 +89,15 @@ class BridgingHubBaseModule(ABC):
     # overwritten by the config parameters. Keeping a map of customizable
     # names allows for a translation beween different modules if necessary.
     _custom_name: dict[str, str] = {
-        "id_name": "id",
-        "value_name": "value",
-        "timestamp_name": "timestamp",
-        "geohash_name": "geohash",
-        "location_name": "location",
+        KEY_DATA_VALUE_MAP: "value_register_map",
+        KEY_GEOHASH_NAME: "geohash",
+        KEY_ID_NAME: "id",
+        KEY_LOCATION_NAME: "location",
+        KEY_STATUS_NAME: "status",
+        KEY_TIMESTAMP_NAME: "timestamp",
+        KEY_TYPE_NAME: "type",
+        KEY_VALUE_NAME: "value",
+        KEY_UNIT_NAME: "unit",
     }
 
     # This will be filled with the KEY_DATA_VALUE_MAP on run init
