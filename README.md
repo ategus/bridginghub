@@ -86,7 +86,16 @@ See [Configuration](#configuration) for details.
 
 #### Full Installation
 
-*To be added.*
+##### CI/CD
+
+Every major release will have its own branch, so those will always be
+*stable* and can be used for CI/CD.
+
+
+##### Release Packages
+
+We will probably generate at least signed and checksumed release archives.
+
 
 
 #### For Development
@@ -104,6 +113,16 @@ pre-commit install
 
 Then configure the project for your use case — see
 [Configuration](#configuration).
+
+
+##### Branches
+
+The `main` branch **Must** always be *working*, i.e. new (all) developers
+will be able to use and merge the branch w/o first having to get a running
+basis.
+
+New code will always go through as 'merge-request'.
+Forks and development branches are our friends.
 
 
 ### Configuration
