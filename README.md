@@ -2,7 +2,9 @@
 
 ## Status
 
-* N O T   R E A D Y   Y E T ! *
+The basic functionality is working, but it's
+
+*NOT Production Ready*
 
 ## Description
 
@@ -31,6 +33,10 @@ INPUT                                       OUTPUT
 #collect                                    #send
 #consume                                    #produce
                                             #cleanup            .cleanup
+
+                     ,--->#>---.                                ,-->#
+   ,------->::>-----+----------+---->::>----+------->::>-------'
+>-'                                          '-->
 ```
 
 ## Setup

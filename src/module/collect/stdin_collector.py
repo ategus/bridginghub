@@ -25,6 +25,9 @@ class StdinCollector(CollectorBaseModule):
                 k = d.pop()
                 r[k] = {}
                 n = str(self.current_timestamp())
+                r[k][
+                    self._custom_name[StdinCollector.KEY_BH_STATUS_NAME]
+                ] = "in"
                 r[k][self._custom_name[StdinCollector.KEY_TIMESTAMP_NAME]] = n
                 r[k][self._custom_name[StdinCollector.KEY_VALUE_NAME]] = line
                 if len(d) == 0:

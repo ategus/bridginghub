@@ -124,6 +124,19 @@ def run_module(action_name, config) -> bool:
             m = load_module(BridgingHubBaseModule.KEY_INPUT, config)
             # get the infos from input
             ri = m.input()
+            if "verbose" in config and config["verbose"] == "True":
+                if ri:
+                    print("Data from input: ", ri)
+            if (
+                config[BridgingHubBaseModule.KEY_DATA][
+                    BridgingHubBaseModule.KEY_DATA_VALUE_MAP
+                ].keys()
+                != ri.keys()
+            ):
+                raise InputModuleException(
+                    "Every module MUST make sure all configured data points",
+                    " do get a timestamp and a value.",
+                )
             if isinstance(s, StorageBaseModule):
                 # write input to cache and return cached items
                 rc = s.write_cache(ri)
@@ -134,6 +147,9 @@ def run_module(action_name, config) -> bool:
             else:
                 # w/o input and cache, just load the config
                 ri = config[BridgingHubBaseModule.KEY_DATA]
+        if "verbose" in config and config["verbose"] == "True":
+            if rc:
+                print("Data from cache: ", rc)
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
@@ -143,20 +159,15 @@ def run_module(action_name, config) -> bool:
                 ro = m.output(ri)
             elif rc:
                 ro = m.output(rc)
-            print("rc:", rc)
             if isinstance(s, StorageBaseModule):
                 # process current data mv timestamp_datakey.json from new
-                # to junk or archive
+                # to junk or archive based on marker from output..
                 re = s.store(ro)
-                print(re)
-                pass
             if "verbose" in config and config["verbose"] == "True":
-                if ri:
-                    print("Info from input: ", ri)
-                if rc:
-                    print("Info from cache: ", rc)
                 if ro:
-                    print("Info from output:", ro)
+                    print("Data from output:", ro)
+                if re:
+                    print("Data from storage:", re)
         elif action_name == BridgingHubBaseModule.KEY_CLEANUP:
             if isinstance(s, StorageBaseModule):
                 pass  # cleanup
@@ -165,11 +176,11 @@ def run_module(action_name, config) -> bool:
                     "Action 'cleanup' only makes sense if "
                     + "'storage' is configured."
                 )
-        else:  # action_name == BridgingHubBaseModule.KEY_INPUT:
+        else:  # action_name == BridgingHubBaseModule.KEY_INPUT (no output)
             if ri:
-                print("Info from input: ", ri)
+                print("Data from input: ", ri)
             if rc:
-                print("Info from cache: ", rc)
+                print("Data from cache: ", rc)
 
     # TODO:
     # input -> prefilter -> cache -> filter -> output -> postfilter -> store
@@ -270,6 +281,3 @@ if __name__ == "__main__":
     ) as e:
         print("The following error occurred:", e)
         sys.exit(98)
-    except Exception as e:
-        print(f"Last resort error... {e}")
-        sys.exit(99)
