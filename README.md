@@ -156,7 +156,7 @@ or transformations — without modifying the core.
 Run the tool using:
 
 ```bash
-./src/main.py -c config/example.yml collect
+./src/main.py -c config/example.yml bridge
 ```
 
 Adjust the path and command according to your configuration and modules.
