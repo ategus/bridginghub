@@ -10,7 +10,7 @@ import os
 import sys
 from os.path import join
 
-from bridging_hub_module import (  # InputModuleException,
+from bridging_hub_module import (
     BridgingHubBaseModule,
     BridgingHubModuleRegistry,
     BrokenConfigException,
@@ -24,6 +24,19 @@ from bridging_hub_module import (  # InputModuleException,
 class IllegalFileOperation(Exception):
     """Custom Error to be raised on illegal file operations in order
     to treat them uniformly."""
+
+    pass
+
+
+class ModuleLoaderException(Exception):
+    """Marks a problem in connection with configuration and loading of
+    modules."""
+
+    pass
+
+
+class ModuleQueueException(Exception):
+    """Failed to run the module queue as requested."""
 
     pass
 
@@ -46,8 +59,8 @@ def load_config(filename, workdir="") -> dict:
                 j = json.load(f)
         except Exception as e:
             raise IllegalFileOperation(
-                f"""Could not read the config file {filename} - the
-                problem was: {e}"""
+                f"""Could not read the config file {filename} - the \
+problem was: {e}"""
             )
     if filename[-5:] == ".yaml" or filename[-4:] == ".yml":
         try:
@@ -57,16 +70,16 @@ def load_config(filename, workdir="") -> dict:
                 import yaml  # type: ignore[import-untyped, no-redef]
             except ImportError:
                 raise IllegalFileOperation(
-                    """Install at least either 'ruamel.yaml' or 'yaml'
-                    (PyYAML) or use JSON configs."""
+                    """Install at least either 'ruamel.yaml' or 'yaml' \
+(PyYAML) or use JSON configs."""
                 )
         try:
             with open(filename) as f:
                 j = yaml.safe_load(f)
         except Exception as e:
             raise IllegalFileOperation(
-                f"""Could not read the config file {filename} -
-                the problem was: {e}"""
+                f"""Could not read the config file {filename} - \
+the problem was: {e}"""
             )
     return j
 
@@ -77,25 +90,39 @@ def load_module(action_name, config) -> BridgingHubBaseModule:
     :param str action_name: The name/type to register the module with
     :param config config: The parameter map that was read from file
     :rtype: BridgingHubBaseModule
-    :return: Return the requested module"""
-    BridgingHubModuleRegistry.register_module(
-        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME],
-        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_PATH],
-    )
-    m = BridgingHubModuleRegistry.load_module(
-        config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
-    )
-    m.configure(config)
-    return m
+    :return: Return the requested module
+    :raise: ModuleLoaderException"""
+    try:
+        BridgingHubModuleRegistry.register_module(
+            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME],
+            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_PATH],
+        )
+        m = BridgingHubModuleRegistry.load_module(
+            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
+        )
+        if m._action_type != action_name:
+            raise BrokenConfigException(
+                f"""The config for '{action_name}' holds a module of type \
+'{m._action_type}'."""
+            )
+        m.configure(config)
+        return m
+    except (
+        DuplicatedModuleException,
+        NoSuchModuleException,
+        BrokenConfigException,
+    ) as e:
+        raise ModuleLoaderException(f"Unable to load module: {e}")
 
 
-def run_module(action_name, config) -> bool:
+def run_module_queue(action_name, config) -> bool:
     """Execute a module using the parameters found in the config.
 
     :param str action_name: The name of the action type from the registry
     :param dict config: The parameter map that was read from file
     :rtype: bool
-    :return: Report success/failure and leave the rest to the caller"""
+    :return: Report success/failure and leave the rest to the caller
+    :raise: ModuleQueueException"""
     try:
         # TODO testing here..
         # Load the storage module on request by config
@@ -134,8 +161,8 @@ def run_module(action_name, config) -> bool:
                 != ri.keys()
             ):
                 raise InputModuleException(
-                    "Every module MUST make sure all configured data points",
-                    " do get a timestamp and a value.",
+                    "Every module MUST make sure all configured data points \
+do get a timestamp and a value.",
                 )
             if isinstance(s, StorageBaseModule):
                 # write input to cache and return cached items
@@ -173,8 +200,8 @@ def run_module(action_name, config) -> bool:
                 pass  # cleanup
             else:
                 raise BrokenConfigException(
-                    "Action 'cleanup' only makes sense if "
-                    + "'storage' is configured."
+                    "Action 'cleanup' only makes sense if \
+'storage' is configured."
                 )
         else:  # action_name == BridgingHubBaseModule.KEY_INPUT (no output)
             if ri:
@@ -182,15 +209,10 @@ def run_module(action_name, config) -> bool:
             if rc:
                 print("Data from cache: ", rc)
 
-    # TODO:
-    # input -> prefilter -> cache -> filter -> output -> postfilter -> store
-    except (NoSuchModuleException, DuplicatedModuleException) as e:
-        print(e)
-        return False
-    except AssertionError as e:
-        print("Wrong type of module loaded", e)
-        return False
-    return True
+        return True
+    # TODO: input->prefilter->cache->filter->output->postfilter->store
+    except (ModuleLoaderException, InputModuleException) as e:
+        raise ModuleQueueException(f"Stopped running the module queue: {e}")
     # TODO how shall we exit eventually? Clean up should be done in the
     # submodule..?!
 
@@ -268,16 +290,11 @@ if __name__ == "__main__":
         # TODO duplicate for storage
         # TODO duplicate for filter
 
-        run_module(action_name, cfg)
+        run_module_queue(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
-        print(e)
+        print(f"Could not load the config: {e}")
         sys.exit(2)
-    except (
-        DuplicatedModuleException,
-        NoSuchModuleException,
-        BrokenConfigException,
-        InputModuleException,
-    ) as e:
-        print("The following error occurred:", e)
+    except ModuleQueueException as e:
+        print(f"The following error occurred: {e}")
         sys.exit(98)
