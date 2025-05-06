@@ -160,6 +160,7 @@ Run the tool using:
 ```
 
 Adjust the path and command according to your configuration and modules.
+**NOTE:** The example config will write to your '/tmp/' folder.
 
 
 ## License

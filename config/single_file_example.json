@@ -13,7 +13,7 @@
         "module_class_name": "DefaultStorageModule",
         "cache": "/tmp/bridgingHub/input",
         "junk": "/tmp/bridgingHub/failed",
-        "archive": "/var/lib/bridgingHub/archive"
+        "archive": "/tmp/bridgingHub/var/lib/bridgingHub/archive"
     },
     "filter": {
         "module_path": "",
