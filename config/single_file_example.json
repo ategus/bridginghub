@@ -5,14 +5,30 @@
         "module_class_name": "StdinCollector"
     },
     "output": {
+        "module_path": "module.send.stdout_sender",
+        "module_class_name": "StdoutSender"
+    },
+    "storage": {
+        "module_path": "module.storage.default_storage",
+        "module_class_name": "DefaultStorageModule",
+        "cache": "/tmp/bridgingHub/input",
+        "junk": "/tmp/bridgingHub/failed",
+        "archive": "/var/lib/bridgingHub/archive"
+    },
+    "filter": {
+        "module_path": "",
+        "module_class_name": "",
+        "jinja_vars": {},
+        "jinja_filter": []
+    },
+    "data": {
         "timestamp_name": "timestamp",
         "value_register_map": {
             "0": {
                 "id": "test0"
             }
         }
-    },
-    "data": {}
+    }
 }
 
 
