@@ -9,6 +9,7 @@ import os
 # import shutil
 import sys
 from os.path import join
+from typing import cast
 
 from bridging_hub_module import (
     BridgingHubBaseModule,
@@ -35,20 +36,36 @@ class ModuleLoaderException(Exception):
     pass
 
 
-class ModuleQueueException(Exception):
-    """Failed to run the module queue as requested."""
+class ModuleChainException(Exception):
+    """Failed to run the module chain as requested."""
 
     pass
 
 
-def load_config(filename, workdir="") -> dict:
+ConfigBaseType = dict[str, str]
+ConfigSubType = ConfigBaseType
+ConfigFilterType = dict[str, str | ConfigSubType | list[str]]
+ConfigDataType = dict[str, str | dict[str, ConfigSubType]]
+
+# Define a type hint for the config
+ConfigType = (
+    ConfigBaseType
+    | dict[str, str | ConfigSubType]
+    | dict[str, str | ConfigFilterType]
+    | dict[str, str | ConfigDataType]
+)
+
+
+def load_config(
+    filename, workdir=""
+) -> ConfigType | ConfigSubType | ConfigFilterType | ConfigDataType:
     """Load the configuration for actions and data from YAML/JSON file(s).
 
     :param str filename: The name of the file (mandatory)
     :rtype: dict
     :return: The config from YAML/JSON
     :raise IllegalFileOperation:"""
-    j = {}
+    j: dict = {}
     if not filename.startswith("/"):
         filename = join(workdir, filename)
     if filename[-5:] == ".json":
@@ -100,10 +117,10 @@ def load_module(action_name, config) -> BridgingHubBaseModule:
         m = BridgingHubModuleRegistry.load_module(
             config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
         )
-        if m._action_type != action_name:
+        if m.action_type != action_name:
             raise BrokenConfigException(
                 f"""The config for '{action_name}' holds a module of type \
-'{m._action_type}'."""
+'{m.action_type}'."""
             )
         m.configure(config)
         return m
@@ -115,14 +132,14 @@ def load_module(action_name, config) -> BridgingHubBaseModule:
         raise ModuleLoaderException(f"Unable to load module: {e}")
 
 
-def run_module_queue(action_name, config) -> bool:
+def run_module_chain(action_name, config) -> bool:
     """Execute a module using the parameters found in the config.
 
     :param str action_name: The name of the action type from the registry
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
-    :raise: ModuleQueueException"""
+    :raise: ModuleChainException"""
     try:
         # TODO testing here..
         # Load the storage module on request by config
@@ -212,7 +229,7 @@ do get a timestamp and a value.",
         return True
     # TODO: input->prefilter->cache->filter->output->postfilter->store
     except (ModuleLoaderException, InputModuleException) as e:
-        raise ModuleQueueException(f"Stopped running the module queue: {e}")
+        raise ModuleChainException(f"Stopped running the module chain: {e}")
     # TODO how shall we exit eventually? Clean up should be done in the
     # submodule..?!
 
@@ -260,12 +277,12 @@ if __name__ == "__main__":
         print(f"Please provide a valid WORKDIR: {cfg_dir}")
         sys.exit(1)
     # initialize the config dictionary
-    cfg = {}
+    cfg: dict = {}
     # try to load the config context first
     try:
         if args.config:
             # get the config from the location provided by the user
-            cfg = load_config(args.config, cfg_dir)
+            cfg = cast(ConfigType, load_config(args.config, cfg_dir))
         if "verbose" in cfg and cfg["verbose"]:
             if cfg["verbose"] != "True" or cfg["verbose"] != "False":
                 raise BrokenConfigException(
@@ -276,25 +293,50 @@ if __name__ == "__main__":
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
         if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
-            cfg[BridgingHubBaseModule.KEY_INPUT] = load_config(
-                cfg[BridgingHubBaseModule.KEY_INPUT], cfg_dir
+            cfg[BridgingHubBaseModule.KEY_INPUT] = cast(
+                ConfigSubType,
+                load_config(
+                    cfg[BridgingHubBaseModule.KEY_INPUT],
+                    cfg_dir,
+                ),
             )
         if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
-            cfg[BridgingHubBaseModule.KEY_OUTPUT] = load_config(
-                cfg[BridgingHubBaseModule.KEY_OUTPUT], cfg_dir
+            cfg[BridgingHubBaseModule.KEY_OUTPUT] = cast(
+                ConfigSubType,
+                load_config(
+                    cfg[BridgingHubBaseModule.KEY_OUTPUT],
+                    cfg_dir,
+                ),
+            )
+        if isinstance(cfg[BridgingHubBaseModule.KEY_STORAGE], str):
+            cfg[BridgingHubBaseModule.KEY_STORAGE] = cast(
+                ConfigSubType,
+                load_config(
+                    cfg[BridgingHubBaseModule.KEY_STORAGE],
+                    cfg_dir,
+                ),
+            )
+        if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
+            cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
+                ConfigFilterType,
+                load_config(
+                    cfg[BridgingHubBaseModule.KEY_FILTER],
+                    cfg_dir,
+                ),
             )
         if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
-            cfg[BridgingHubBaseModule.KEY_DATA] = load_config(
-                cfg[BridgingHubBaseModule.KEY_DATA], cfg_dir
+            cfg[BridgingHubBaseModule.KEY_DATA] = cast(
+                ConfigDataType,
+                load_config(
+                    cfg[BridgingHubBaseModule.KEY_DATA],
+                    cfg_dir,
+                ),
             )
-        # TODO duplicate for storage
-        # TODO duplicate for filter
-
-        run_module_queue(action_name, cfg)
+        run_module_chain(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
-    except ModuleQueueException as e:
+    except ModuleChainException as e:
         print(f"The following error occurred: {e}")
         sys.exit(98)

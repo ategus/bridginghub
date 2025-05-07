@@ -3,6 +3,11 @@ from datetime import datetime, timezone
 from importlib import import_module
 from typing import Type
 
+from main import (
+    ConfigBaseType,
+    ConfigDataType,
+)
+
 
 class DuplicatedModuleException(Exception):
     """
@@ -60,14 +65,15 @@ class BridgingHubBaseModule(ABC):
     Abstract base class for all action modules.
     """
 
-    KEY_BRIDGE: str = "bridge"
-    KEY_CLEANUP: str = "cleanup"
-    KEY_DATA: str = "data"
-    KEY_INPUT: str = "input"
-    KEY_OUTPUT: str = "output"
-    KEY_STORAGE: str = "storage"
+    KEY_BRIDGE = "bridge"
+    KEY_CLEANUP = "cleanup"
+    KEY_DATA = "data"
+    KEY_INPUT = "input"
+    KEY_OUTPUT = "output"
+    KEY_FILTER = "filter"
+    KEY_STORAGE = "storage"
 
-    KEY_ACTION_TYPES = [
+    KEY_ACTION_TYPES: list[str] = [
         KEY_BRIDGE,
         KEY_CLEANUP,
         KEY_INPUT,
@@ -98,13 +104,13 @@ class BridgingHubBaseModule(ABC):
     # * produce (pending - asynchronous output action)
     # * bridge (standard - connecting in-/output)
     # * filter (pending - as bridge but edit content)
-    _action_type: str = ""
+    action_type: str = ""
 
     # For a minimal compatibility between the modules, the basic data
     # structure is defined and filled with defaults. This will be
     # overwritten by the config parameters. Keeping a map of customizable
     # names allows for a translation beween different modules if necessary.
-    _custom_name: dict[str, str] = {
+    _custom_name: ConfigBaseType = {
         KEY_BH_STATUS_NAME: "bHstatus",
         KEY_DATA_VALUE_MAP: "value_register_map",
         KEY_GEOHASH_NAME: "geohash",
@@ -117,7 +123,7 @@ class BridgingHubBaseModule(ABC):
     }
 
     # This will be filled with the KEY_DATA_VALUE_MAP on run init
-    _data: dict[str, dict] = {}
+    _data: ConfigDataType = {}
 
     # Store the config details related to the action type.
     _action_detail: dict[str, str] = {}
@@ -137,30 +143,31 @@ class BridgingHubBaseModule(ABC):
         to happen after Object creation.
         :param dict config:
         :raise BrokenConfigException:"""
-        # set the custom names from config
-        # TODO -> this should probably be done for ALL modules
-        # in the same run, thus globally and NOT at the module level
-        for k in self._custom_name.keys():
-            if k in config and config[k]:
-                self._custom_name = config[k]
         # init the _data
         if (
             BridgingHubBaseModule.KEY_DATA in config
             and config[BridgingHubBaseModule.KEY_DATA]
         ):
             self._data = config[BridgingHubBaseModule.KEY_DATA]
+            # set the custom names from config
+            for k in self._custom_name.keys():
+                if k in self._data and self._data[k]:
+                    self._custom_name[k] = str(self._data[k])
         else:
             raise BrokenConfigException(
                 "No 'data' section found in the config."
             )
-        if self._action_type in config and config[self._action_type]:
-            self._action_detail = config[self._action_type]
+        if self.action_type in config and config[self.action_type]:
+            self._action_detail = config[self.action_type]
         else:
             raise BrokenConfigException(
-                f"No '{self._action_type}' section found in the config."
+                f"No '{self.action_type}' section found in the config."
             )
 
     def current_timestamp(self) -> int:
+        """Generate a timestamp in nano seconds since Unix Epoch.
+        :rtype: int
+        :return: nano second timestamp a.U."""
         epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
         return int((now - epoch).total_seconds() * 1000000000)
@@ -184,8 +191,8 @@ class BridgingHubModuleRegistry:
             cls._registry[module_class_name] = module_path
         elif cls._registry[module_class_name] != module_path:
             raise DuplicatedModuleException(
-                f"""This module ({module_class_name}) was already
-                registered for '{cls._registry[module_class_name]}'"""
+                f"""This module ({module_class_name}) was already \
+registered for '{cls._registry[module_class_name]}'"""
             )
 
     @classmethod
@@ -198,7 +205,8 @@ class BridgingHubModuleRegistry:
         :raise NoSuchModuleException:"""
         if module_class_name not in cls._registry:
             raise NoSuchModuleException(
-                f"There is no module by name '{module_class_name}' registered."
+                f"There is no module registered by the name of \
+'{module_class_name}'."
             )
         module_path = cls._registry[module_class_name]
         module = import_module(module_path)
@@ -215,7 +223,7 @@ class CollectorBaseModule(BridgingHubBaseModule):
     Abstract base collector module used by input modules.
     """
 
-    _action_type: str = BridgingHubBaseModule.KEY_INPUT
+    action_type: str = BridgingHubBaseModule.KEY_INPUT
 
     def input(self) -> dict[str, dict[str, str]]:
         return self.collect()
@@ -238,7 +246,7 @@ class SenderBaseModule(BridgingHubBaseModule):
     Abstract base sender module used by output modules.
     """
 
-    _action_type: str = BridgingHubBaseModule.KEY_OUTPUT
+    action_type: str = BridgingHubBaseModule.KEY_OUTPUT
 
     def input(self) -> dict[str, dict[str, str]]:
         raise BrokenConfigException(
@@ -263,7 +271,7 @@ class StorageBaseModule(BridgingHubBaseModule):
     Abstract base storage module. There is only one type of storage modules.
     """
 
-    _action_type: str = BridgingHubBaseModule.KEY_STORAGE
+    action_type: str = BridgingHubBaseModule.KEY_STORAGE
 
     def input(self) -> dict[str, dict[str, str]]:
         raise BrokenConfigException(
