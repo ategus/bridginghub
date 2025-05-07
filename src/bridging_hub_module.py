@@ -110,6 +110,7 @@ class BridgingHubBaseModule(ABC):
     # structure is defined and filled with defaults. This will be
     # overwritten by the config parameters. Keeping a map of customizable
     # names allows for a translation beween different modules if necessary.
+    # TODO Filter: shall we leave this 'shared'?
     _custom_name: ConfigBaseType = {
         KEY_BH_STATUS_NAME: "bHstatus",
         KEY_GEOHASH_NAME: "geohash",
@@ -122,10 +123,12 @@ class BridgingHubBaseModule(ABC):
     }
 
     # This will be filled with the KEY_DATA_VALUE_MAP on run init
+    # TODO Filter: shall we leave this 'shared'?
     _data: ConfigDataType = {}
 
-    # Store the config details related to the action type.
-    _action_detail: dict[str, str] = {}
+    def __init__(self):
+        # Store the config details related to the action type.
+        self._action_detail: dict[str, str] = {}
 
     @abstractmethod
     def input(self) -> dict[str, dict[str, str]]:
