@@ -112,7 +112,6 @@ class BridgingHubBaseModule(ABC):
     # names allows for a translation beween different modules if necessary.
     _custom_name: ConfigBaseType = {
         KEY_BH_STATUS_NAME: "bHstatus",
-        KEY_DATA_VALUE_MAP: "value_register_map",
         KEY_GEOHASH_NAME: "geohash",
         KEY_ID_NAME: "id",
         KEY_LOCATION_NAME: "location",
@@ -152,6 +151,10 @@ class BridgingHubBaseModule(ABC):
             # set the custom names from config
             for k in self._custom_name.keys():
                 if k in self._data and self._data[k]:
+                    if not isinstance(self._data[k], str):
+                        raise BrokenConfigException(
+                            f"The 'data:{k}' config parameter MUST be a 'str'"
+                        )
                     self._custom_name[k] = str(self._data[k])
         else:
             raise BrokenConfigException(
