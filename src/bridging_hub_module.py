@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from importlib import import_module
 from typing import Type
 
-from main import (
+from bridging_hub_types import (
     ConfigBaseType,
     ConfigDataType,
 )

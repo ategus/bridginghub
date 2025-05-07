@@ -20,6 +20,12 @@ from bridging_hub_module import (
     NoSuchModuleException,
     StorageBaseModule,
 )
+from bridging_hub_types import (
+    ConfigDataType,
+    ConfigFilterType,
+    ConfigSubType,
+    ConfigType,
+)
 
 
 class IllegalFileOperation(Exception):
@@ -40,20 +46,6 @@ class ModuleChainException(Exception):
     """Failed to run the module chain as requested."""
 
     pass
-
-
-ConfigBaseType = dict[str, str]
-ConfigSubType = ConfigBaseType
-ConfigFilterType = dict[str, str | ConfigSubType | list[str]]
-ConfigDataType = dict[str, str | dict[str, ConfigSubType]]
-
-# Define a type hint for the config
-ConfigType = (
-    ConfigBaseType
-    | dict[str, str | ConfigSubType]
-    | dict[str, str | ConfigFilterType]
-    | dict[str, str | ConfigDataType]
-)
 
 
 def load_config(
