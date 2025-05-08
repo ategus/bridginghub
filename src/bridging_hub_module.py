@@ -106,29 +106,29 @@ class BridgingHubBaseModule(ABC):
     # * filter (pending - as bridge but edit content)
     action_type: str = ""
 
-    # For a minimal compatibility between the modules, the basic data
-    # structure is defined and filled with defaults. This will be
-    # overwritten by the config parameters. Keeping a map of customizable
-    # names allows for a translation beween different modules if necessary.
-    # TODO Filter: shall we leave this 'shared'?
-    _custom_name: ConfigBaseType = {
-        KEY_BH_STATUS_NAME: "bHstatus",
-        KEY_GEOHASH_NAME: "geohash",
-        KEY_ID_NAME: "id",
-        KEY_LOCATION_NAME: "location",
-        KEY_TIMESTAMP_NAME: "timestamp",
-        KEY_TYPE_NAME: "type",
-        KEY_VALUE_NAME: "value",
-        KEY_UNIT_NAME: "unit",
-    }
-
-    # This will be filled with the KEY_DATA_VALUE_MAP on run init
-    # TODO Filter: shall we leave this 'shared'?
-    _data: ConfigDataType = {}
-
     def __init__(self):
         # Store the config details related to the action type.
         self._action_detail: dict[str, str] = {}
+        # This will be filled with the KEY_DATA_VALUE_MAP on run init
+        # We need to keep this (and the next) dict separate for the
+        # modules even if the content MUST be compatible inside of
+        # one run, and mostly actually is identical...
+        self._data: ConfigDataType = {}
+        # For a minimal compatibility between the modules, the basic data
+        # structure is defined and filled with defaults. This will be
+        # overwritten by the config parameters. Keeping a map of customizable
+        # names allows for a translation beween different modules if
+        # necessary.
+        self._custom_name: ConfigBaseType = {
+            BridgingHubBaseModule.KEY_BH_STATUS_NAME: "bHstatus",
+            BridgingHubBaseModule.KEY_GEOHASH_NAME: "geohash",
+            BridgingHubBaseModule.KEY_ID_NAME: "id",
+            BridgingHubBaseModule.KEY_LOCATION_NAME: "location",
+            BridgingHubBaseModule.KEY_TIMESTAMP_NAME: "timestamp",
+            BridgingHubBaseModule.KEY_TYPE_NAME: "type",
+            BridgingHubBaseModule.KEY_VALUE_NAME: "value",
+            BridgingHubBaseModule.KEY_UNIT_NAME: "unit",
+        }
 
     @abstractmethod
     def input(self) -> dict[str, dict[str, str]]:
