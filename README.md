@@ -2,9 +2,7 @@
 
 ## Status
 
-The basic functionality is working, but it's
-
-*NOT Production Ready*
+The basic functionality is *working*, but it's *NOT Production Ready* yet.
 
 ## Description
 
@@ -86,16 +84,20 @@ See [Configuration](#configuration) for details.
 
 #### Full Installation
 
+##### Setuptools
+
+*To be added.*
+
 ##### CI/CD
 
-Every major release will have its own branch, so those will always be
-*stable* and can be used for CI/CD.
+Every **major release** will have its **own branch**, e.g. `release/v1.0`,
+so those will always be *stable* and can be used for **CI/CD**.
 
 
 ##### Release Packages
 
-We will probably generate at least signed and checksumed release archives.
-
+We will probably generate at least signed and checksumed release archives
+at some point.
 
 
 #### For Development
@@ -117,7 +119,7 @@ Then configure the project for your use case — see
 
 ##### Branches
 
-The `main` branch **Must** always be *working*, i.e. new (all) developers
+The `main` branch **must** always be *working*, i.e. new (all) developers
 will be able to use and merge the branch w/o first having to get a running
 basis.
 
