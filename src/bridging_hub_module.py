@@ -52,6 +52,14 @@ class OutputModuleException(Exception):
     pass
 
 
+class FilterModuleException(Exception):
+    """
+    Exception to be thrown on errors while filtering messages.
+    """
+
+    pass
+
+
 class StorageModuleException(Exception):
     """
     Exception to be thrown on errors while writing to disk.
@@ -274,6 +282,35 @@ class SenderBaseModule(BridgingHubBaseModule):
     def send(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
+        pass
+
+
+class FilterBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base filter module. There is only one type of filter modules.
+    """
+
+    action_type: str = BridgingHubBaseModule.KEY_STORAGE
+
+    def input(self) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This filter module was configured in input."
+        )
+        return {}
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This filter module was configured in output."
+        )
+        return {}
+
+    @abstractmethod
+    def filter(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Filter content between storage, in-, and output."""
         pass
 
 
