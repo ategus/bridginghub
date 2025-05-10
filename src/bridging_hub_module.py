@@ -65,14 +65,16 @@ class BridgingHubBaseModule(ABC):
     Abstract base class for all action modules.
     """
 
-    KEY_BRIDGE = "bridge"
-    KEY_CLEANUP = "cleanup"
-    KEY_DATA = "data"
-    KEY_INPUT = "input"
-    KEY_OUTPUT = "output"
-    KEY_FILTER = "filter"
-    KEY_STORAGE = "storage"
+    # display generic keywords and prevent typos etc.
+    KEY_BRIDGE: str = "bridge"
+    KEY_CLEANUP: str = "cleanup"
+    KEY_DATA: str = "data"
+    KEY_INPUT: str = "input"
+    KEY_OUTPUT: str = "output"
+    KEY_FILTER: str = "filter"
+    KEY_STORAGE: str = "storage"
 
+    # these are actions a user can choose from at runtime from the cli
     KEY_ACTION_TYPES: list[str] = [
         KEY_BRIDGE,
         KEY_CLEANUP,
@@ -80,21 +82,24 @@ class BridgingHubBaseModule(ABC):
         KEY_OUTPUT,
     ]
 
-    KEY_ACTION_MODULE_NAME = "module_class_name"
-    KEY_ACTION_MODULE_PATH = "module_path"
+    # keys refering to module loading
+    KEY_ACTION_MODULE_NAME: str = "module_class_name"
+    KEY_ACTION_MODULE_PATH: str = "module_path"
 
-    KEY_BH_STATUS_NAME = "bHstatus_name"
-    KEY_DATA_VALUE_MAP = "value_register_map"
-    KEY_GEOHASH_NAME = "geohash_name"
-    KEY_ID_NAME = "id_name"
-    KEY_LOCATION_NAME = "location_name"
-    KEY_TIMESTAMP_NAME = "timestamp_name"
-    KEY_TYPE_NAME = "type_name"
-    KEY_VALUE_NAME = "value_name"
-    KEY_UNIT_NAME = "unit_name"
+    # these are keys used in the _custom_name map and are ment
+    # to guarantee the accessibilty between different modulse
+    KEY_BH_STATUS_NAME: str = "bHstatus_name"
+    KEY_DATA_VALUE_MAP: str = "value_register_map"
+    KEY_GEOHASH_NAME: str = "geohash_name"
+    KEY_ID_NAME: str = "id_name"
+    KEY_LOCATION_NAME: str = "location_name"
+    KEY_TIMESTAMP_NAME: str = "timestamp_name"
+    KEY_TYPE_NAME: str = "type_name"
+    KEY_VALUE_NAME: str = "value_name"
+    KEY_UNIT_NAME: str = "unit_name"
 
     # the default relative path for modules"
-    DEFAULT_ACTION_MODULE_PATH = "module"
+    DEFAULT_ACTION_MODULE_PATH: str = "module"
 
     # The action type this modules belongs to.
     # These are the (possible) candidates:
