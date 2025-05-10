@@ -22,7 +22,6 @@ from bridging_hub_module import (
 )
 from bridging_hub_types import (
     ConfigDataType,
-    ConfigFilterType,
     ConfigSubType,
     ConfigType,
 )
@@ -50,7 +49,7 @@ class ModuleChainException(Exception):
 
 def load_config(
     filename, workdir=""
-) -> ConfigType | ConfigSubType | ConfigFilterType | ConfigDataType:
+) -> ConfigType | ConfigSubType | ConfigDataType:
     """Load the configuration for actions and data from YAML/JSON file(s).
 
     :param str filename: The name of the file (mandatory)
@@ -310,7 +309,7 @@ if __name__ == "__main__":
             )
         if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
             cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
-                ConfigFilterType,
+                ConfigSubType,
                 load_config(
                     cfg[BridgingHubBaseModule.KEY_FILTER],
                     cfg_dir,
