@@ -22,7 +22,6 @@
         "jinja_filter": []
     },
     "data": {
-        "timestamp_name": "timestamp",
         "value_register_map": {
             "0": {
                 "id": "test0"
