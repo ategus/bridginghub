@@ -23,6 +23,7 @@ class StdoutSender(SenderBaseModule):
             # datapoint marking it 'failed' instead of 'out'... (see also
             # 'module/storage/default_storage.py') - files not in 'm' will
             # be skipped in 'store(m)'.
+            # TODO: Enrich with data conf params set in _custom_name...
             print(f"Data '{k}' received from '{s}': {v}")
             m[k] = v
             m[k][self._custom_name[StdoutSender.KEY_BH_STATUS_NAME]] = "out"
