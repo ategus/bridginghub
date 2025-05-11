@@ -92,22 +92,36 @@ the problem was: {e}"""
     return j
 
 
-def load_module(action_name, config) -> BridgingHubBaseModule:
+def load_module(
+    config: ConfigType, action_name: str, segment_name: str = "default"
+) -> BridgingHubBaseModule:
     """Wrapper to load all modulues uniformely (and no-brain-ly).
 
-    :param str action_name: The name/type to register the module with
     :param config config: The parameter map that was read from file
+    :param str action_name: The name/type to register the module with
+    :param str segment: The name of the chain segment
     :rtype: BridgingHubBaseModule
     :return: Return the requested module
     :raise: ModuleLoaderException"""
     try:
-        BridgingHubModuleRegistry.register_module(
-            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME],
-            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_PATH],
-        )
-        m = BridgingHubModuleRegistry.load_module(
-            config[action_name][BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
-        )
+        ac = config[action_name]
+        assert isinstance(
+            ac, dict
+        ), f"Expected action_config to \
+be a dictionary, but got {type(ac)}"
+
+        mn = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
+        mp = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_PATH]
+        assert isinstance(
+            mn, str
+        ), f"""Expected module_name to be a string, \
+but got {type(mn)}"""
+        assert isinstance(
+            mp, str
+        ), f"""Expected module_path to be a string, \
+but got {type(mp)}"""
+
+        m = BridgingHubModuleRegistry.register_module(segment_name, mn, mp)
         if m.action_type != action_name:
             raise BrokenConfigException(
                 f"""The config for '{action_name}' holds a module of type \
@@ -116,6 +130,7 @@ def load_module(action_name, config) -> BridgingHubBaseModule:
         m.configure(config)
         return m
     except (
+        AssertionError,
         DuplicatedModuleException,
         NoSuchModuleException,
         BrokenConfigException,
@@ -149,14 +164,16 @@ def run_module_chain(action_name, config) -> bool:
                 BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
             ]
         ):
-            s = load_module(BridgingHubBaseModule.KEY_STORAGE, config)
+            s = load_module(
+                config, BridgingHubBaseModule.KEY_STORAGE, "default"
+            )
 
         # Load input module on request by action or default to data
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_INPUT
         ):
-            m = load_module(BridgingHubBaseModule.KEY_INPUT, config)
+            m = load_module(config, BridgingHubBaseModule.KEY_INPUT, "default")
             # get the infos from input
             ri = m.input()
             if "verbose" in config and config["verbose"] == "True":
@@ -189,7 +206,9 @@ do get a timestamp and a value.",
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
         ):
-            m = load_module(BridgingHubBaseModule.KEY_OUTPUT, config)
+            m = load_module(
+                config, BridgingHubBaseModule.KEY_OUTPUT, "default"
+            )
             if ri:
                 ro = m.output(ri)
             elif rc:
@@ -283,46 +302,63 @@ if __name__ == "__main__":
             cfg["verbose"] = "True"
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
-            cfg[BridgingHubBaseModule.KEY_INPUT] = cast(
-                ConfigSubType,
-                load_config(
-                    cfg[BridgingHubBaseModule.KEY_INPUT],
-                    cfg_dir,
-                ),
+        if BridgingHubBaseModule.KEY_INPUT not in cfg:
+            raise ModuleChainException(
+                "Please configure 'input' in the config file."
             )
-        if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
-            cfg[BridgingHubBaseModule.KEY_OUTPUT] = cast(
-                ConfigSubType,
-                load_config(
-                    cfg[BridgingHubBaseModule.KEY_OUTPUT],
-                    cfg_dir,
-                ),
+        else:
+            if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
+                cfg[BridgingHubBaseModule.KEY_INPUT] = cast(
+                    ConfigSubType,
+                    load_config(
+                        cfg[BridgingHubBaseModule.KEY_INPUT],
+                        cfg_dir,
+                    ),
+                )
+        if BridgingHubBaseModule.KEY_OUTPUT not in cfg:
+            raise ModuleChainException(
+                "Please configure 'output' in the config file."
             )
-        if isinstance(cfg[BridgingHubBaseModule.KEY_STORAGE], str):
-            cfg[BridgingHubBaseModule.KEY_STORAGE] = cast(
-                ConfigSubType,
-                load_config(
-                    cfg[BridgingHubBaseModule.KEY_STORAGE],
-                    cfg_dir,
-                ),
+        else:
+            if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
+                cfg[BridgingHubBaseModule.KEY_OUTPUT] = cast(
+                    ConfigSubType,
+                    load_config(
+                        cfg[BridgingHubBaseModule.KEY_OUTPUT],
+                        cfg_dir,
+                    ),
+                )
+        if BridgingHubBaseModule.KEY_STORAGE in cfg:
+            if isinstance(cfg[BridgingHubBaseModule.KEY_STORAGE], str):
+                cfg[BridgingHubBaseModule.KEY_STORAGE] = cast(
+                    ConfigSubType,
+                    load_config(
+                        cfg[BridgingHubBaseModule.KEY_STORAGE],
+                        cfg_dir,
+                    ),
+                )
+        if BridgingHubBaseModule.KEY_FILTER in cfg:
+            if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
+                cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
+                    ConfigSubType,
+                    load_config(
+                        cfg[BridgingHubBaseModule.KEY_FILTER],
+                        cfg_dir,
+                    ),
+                )
+        if BridgingHubBaseModule.KEY_DATA not in cfg:
+            raise ModuleChainException(
+                "Please configure 'data' in the config file."
             )
-        if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
-            cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
-                ConfigSubType,
-                load_config(
-                    cfg[BridgingHubBaseModule.KEY_FILTER],
-                    cfg_dir,
-                ),
-            )
-        if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
-            cfg[BridgingHubBaseModule.KEY_DATA] = cast(
-                ConfigDataType,
-                load_config(
-                    cfg[BridgingHubBaseModule.KEY_DATA],
-                    cfg_dir,
-                ),
-            )
+        else:
+            if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
+                cfg[BridgingHubBaseModule.KEY_DATA] = cast(
+                    ConfigDataType,
+                    load_config(
+                        cfg[BridgingHubBaseModule.KEY_DATA],
+                        cfg_dir,
+                    ),
+                )
         run_module_chain(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:

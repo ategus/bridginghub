@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from importlib import import_module
-from typing import Type
+from typing import Type, cast
 
 from bridging_hub_types import (
     ConfigBaseType,
@@ -119,7 +119,7 @@ class BridgingHubBaseModule(ABC):
     # * filter (pending - as bridge but edit content)
     action_type: str = ""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Store the config details related to the action type.
         self._action_detail: dict[str, str] = {}
         # This will be filled with the KEY_DATA_VALUE_MAP on run init
@@ -192,49 +192,108 @@ class BridgingHubBaseModule(ABC):
         return int((now - epoch).total_seconds() * 1000000000)
 
 
+RegistryType = dict[str, dict[str, str | BridgingHubBaseModule]]
+
+
 class BridgingHubModuleRegistry:
     """
     Registry class for dynamic module access.
     """
 
-    _registry: dict[str, str] = {}
+    KEY_MOD_PATH = "module_path"
+    KEY_MOD_NAME = "module_name"
+    KEY_MOD_OBJ = "module_object"
+
+    _registry: RegistryType = {}
 
     @classmethod
-    def register_module(cls, module_class_name: str, module_path: str):
+    def register_module(
+        cls, segment_name: str, module_class_name: str, module_path: str
+    ) -> BridgingHubBaseModule:
         """Register a method in the table for later.
 
-        :param str module_class_name: The (unique) name of the class.
+        :param str segment_name: The name of the segment in the chain.
+        :param str module_class_name: The name of the class.
         :param str module_path: The path of the python module.
-        :raise DuplicatedModuleException:"""
-        if module_class_name not in cls._registry:
-            cls._registry[module_class_name] = module_path
-        elif cls._registry[module_class_name] != module_path:
-            raise DuplicatedModuleException(
-                f"""This module ({module_class_name}) was already \
-registered for '{cls._registry[module_class_name]}'"""
-            )
+        :rtype: BridgingHubBaseModule
+        :return: The registered BridgingHubBaseModule
+        :raise NoSuchModuleException: (pass on)"""
+        n: str = segment_name + module_class_name
+        if n not in cls._registry:
+            cls._registry[n] = {
+                BridgingHubModuleRegistry.KEY_MOD_PATH: module_path
+            }
+            cls._registry[n][
+                BridgingHubModuleRegistry.KEY_MOD_NAME
+            ] = module_class_name
+        return cls.load_module(segment_name, module_class_name)
 
     @classmethod
-    def load_module(cls, module_class_name: str) -> BridgingHubBaseModule:
+    def load_module(
+        cls, segment_name: str, module_class_name: str
+    ) -> BridgingHubBaseModule:
         """Look up and return a new instance of a registered module.
 
+        :param str segment_name: The name of the segment in the chain.
         :param str module_class_name: The name of the module as key.
         :rtype: a subclass of BridgingHubBaseModule
         :return: The class of the module.
         :raise NoSuchModuleException:"""
-        if module_class_name not in cls._registry:
+        n: str = segment_name + module_class_name
+        # Test if the module was indeed registered
+        if n not in cls._registry or not cls._registry[n]:
             raise NoSuchModuleException(
                 f"There is no module registered by the name of \
 '{module_class_name}'."
             )
-        module_path = cls._registry[module_class_name]
-        module = import_module(module_path)
-        module_class: Type = getattr(module, module_class_name)
-        if not issubclass(module_class, BridgingHubBaseModule):
-            raise NoSuchModuleException(
-                f"An incompatible module was registered for '{module_path}.'"
+        # Test if the module was loaded before..
+        if not (
+            BridgingHubModuleRegistry.KEY_MOD_OBJ in cls._registry[n]
+            and cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ]
+        ):
+            module_path: str = str(
+                cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_PATH]
             )
-        return module_class()
+            try:
+                pymod = import_module(module_path)
+            except ModuleNotFoundError as e:
+                raise NoSuchModuleException(
+                    f"Module '{module_class_name}' not found. {e}"
+                )
+            except ImportError as e:
+                raise NoSuchModuleException(f"Import error: {e}")
+            except SyntaxError as e:
+                raise NoSuchModuleException(
+                    f"Syntax error in module '{module_class_name}': {e}"
+                )
+            except Exception as e:
+                raise NoSuchModuleException(
+                    f"""An unexpected error occurred in '{module_class_name}'\
+: {e}"""
+                )
+            module_class: Type = getattr(pymod, module_class_name)
+            if not issubclass(module_class, BridgingHubBaseModule):
+                raise NoSuchModuleException(
+                    f"An incompatible module ('{module_class}') was \
+registered for '{module_path}.'"
+                )
+            else:
+                cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ] = cast(
+                    BridgingHubBaseModule, module_class()
+                )
+        if isinstance(
+            cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ],
+            BridgingHubBaseModule,
+        ):
+            return cast(
+                BridgingHubBaseModule,
+                cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ],
+            )
+        else:
+            t = type(cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ])
+            raise NoSuchModuleException(
+                f"Unexpected module type found for {n}: {t}."
+            )
 
 
 class CollectorBaseModule(BridgingHubBaseModule):
@@ -287,7 +346,7 @@ class SenderBaseModule(BridgingHubBaseModule):
 
 class FilterBaseModule(BridgingHubBaseModule):
     """
-    Abstract base filter module. There is only one type of filter modules.
+    Abstract base filter module.
     """
 
     action_type: str = BridgingHubBaseModule.KEY_STORAGE
@@ -316,7 +375,8 @@ class FilterBaseModule(BridgingHubBaseModule):
 
 class StorageBaseModule(BridgingHubBaseModule):
     """
-    Abstract base storage module. There is only one type of storage modules.
+    Abstract base storage module. There is only one type of storage
+    module usable at a time.
     """
 
     action_type: str = BridgingHubBaseModule.KEY_STORAGE
