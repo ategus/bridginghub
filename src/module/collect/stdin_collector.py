@@ -29,7 +29,9 @@ class StdinCollector(CollectorBaseModule):
                     self._custom_name[StdinCollector.KEY_BH_STATUS_NAME]
                 ] = "in"
                 r[k][self._custom_name[StdinCollector.KEY_TIMESTAMP_NAME]] = n
-                r[k][self._custom_name[StdinCollector.KEY_VALUE_NAME]] = line
+                r[k][self._custom_name[StdinCollector.KEY_VALUE_NAME]] = line[
+                    0:-1
+                ]
                 if len(d) == 0:
                     break
         except Exception as e:
