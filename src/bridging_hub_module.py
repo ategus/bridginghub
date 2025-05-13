@@ -145,12 +145,27 @@ class BridgingHubBaseModule(ABC):
 
     @abstractmethod
     def input(self) -> dict[str, dict[str, str]]:
+        """
+        Abstract input method.
+
+        :rtype: dict
+        :return: data set
+        :raise BrokenConfigException:
+        """
         pass
 
     @abstractmethod
     def output(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
+        """
+        Abstract output method.
+
+        :param message: data set as dict
+        :rtype: dict
+        :return: data (sub-)set processed
+        :raise BrokenConfigException:
+        """
         pass
 
     def configure(self, config: dict) -> None:
@@ -190,6 +205,192 @@ class BridgingHubBaseModule(ABC):
         epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
         return int((now - epoch).total_seconds() * 1000000000)
+
+
+class InputBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base module for all input modules.
+    """
+
+    action_type: str = BridgingHubBaseModule.KEY_INPUT
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """
+        Fake output method in input module.
+
+        :param message: data set as dict
+        :rtype: dict
+        :return: data (sub-)set processed
+        :raise BrokenConfigException:
+        """
+        raise BrokenConfigException(
+            "This output module was configured in input."
+        )
+        return {}
+
+
+class OutputBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base module for all input modules.
+    """
+
+    action_type: str = BridgingHubBaseModule.KEY_OUTPUT
+
+    def input(self) -> dict[str, dict[str, str]]:
+        """
+        Fake input method in output module.
+
+        :rtype: dict
+        :return: data set
+        :raise BrokenConfigException:
+        """
+        raise BrokenConfigException(
+            "This input module was configured in output."
+        )
+        return {}
+
+
+class CollectorBaseModule(InputBaseModule):
+    """
+    Abstract base module used by modules collecting data.
+    """
+
+    def input(self) -> dict[str, dict[str, str]]:
+        """
+        Default input method for collector modules.
+
+        :rtype: dict
+        :return: data set
+        :raise BrokenConfigException:
+        """
+        return self.collect()
+
+    @abstractmethod
+    def collect(self) -> dict[str, dict[str, str]]:
+        """
+        Abstract methods to be implemented to gather data info
+        following the config data section and return a dict.
+
+        :rtype: dict
+        :return: data set
+        :raise BrokenConfigException:
+        """
+        pass
+
+
+class SenderBaseModule(OutputBaseModule):
+    """
+    Abstract base sender module used by output modules.
+    """
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """
+        Default output method in sender module.
+
+        :param message: data set as dict
+        :rtype: dict
+        :return: data (sub-)set processed
+        :raise BrokenConfigException:
+        """
+        return self.send(message)
+
+    @abstractmethod
+    def send(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """
+        Abstract method to be implemented to send data info
+        following the config data section and return the
+        dict of the data really sent away.
+
+        :param message: data set as dict
+        :rtype: dict
+        :return: data (sub-)set processed
+        :raise BrokenConfigException:
+        """
+        pass
+
+
+class FilterBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base filter module.
+    """
+
+    action_type: str = BridgingHubBaseModule.KEY_FILTER
+
+    def input(self) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This filter module was configured in input."
+        )
+        return {}
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This filter module was configured in output."
+        )
+        return {}
+
+    @abstractmethod
+    def filter(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Filter content between storage, in-, and output."""
+        pass
+
+
+class StorageBaseModule(BridgingHubBaseModule):
+    """
+    Abstract base storage module. There is only one type of storage
+    module usable at a time.
+    """
+
+    action_type: str = BridgingHubBaseModule.KEY_STORAGE
+
+    def input(self) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This storage module was configured in input."
+        )
+        return {}
+
+    def output(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        raise BrokenConfigException(
+            "This storage module was configured in output."
+        )
+        return {}
+
+    @abstractmethod
+    def write_cache(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Remember message content between in- and output."""
+        pass
+
+    @abstractmethod
+    def read_cache(self) -> dict[str, dict[str, str]]:
+        """Look up message content between in- and output."""
+        pass
+
+    @abstractmethod
+    def clean_cache(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Clean up the files remembered between in- and output."""
+        pass
+
+    @abstractmethod
+    def store(
+        self, message: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, str]]:
+        """Remember message content after output."""
+        pass
 
 
 RegistryType = dict[str, dict[str, str | BridgingHubBaseModule]]
@@ -294,129 +495,3 @@ registered for '{module_path}.'"
             raise NoSuchModuleException(
                 f"Unexpected module type found for {n}: {t}."
             )
-
-
-class CollectorBaseModule(BridgingHubBaseModule):
-    """
-    Abstract base collector module used by input modules.
-    """
-
-    action_type: str = BridgingHubBaseModule.KEY_INPUT
-
-    def input(self) -> dict[str, dict[str, str]]:
-        return self.collect()
-
-    def output(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This input module was configured in output."
-        )
-        return {}
-
-    @abstractmethod
-    def collect(self) -> dict[str, dict[str, str]]:
-        pass
-
-
-class SenderBaseModule(BridgingHubBaseModule):
-    """
-    Abstract base sender module used by output modules.
-    """
-
-    action_type: str = BridgingHubBaseModule.KEY_OUTPUT
-
-    def input(self) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This output module was configured in input."
-        )
-        return {}
-
-    def output(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        return self.send(message)
-
-    @abstractmethod
-    def send(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        pass
-
-
-class FilterBaseModule(BridgingHubBaseModule):
-    """
-    Abstract base filter module.
-    """
-
-    action_type: str = BridgingHubBaseModule.KEY_STORAGE
-
-    def input(self) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This filter module was configured in input."
-        )
-        return {}
-
-    def output(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This filter module was configured in output."
-        )
-        return {}
-
-    @abstractmethod
-    def filter(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        """Filter content between storage, in-, and output."""
-        pass
-
-
-class StorageBaseModule(BridgingHubBaseModule):
-    """
-    Abstract base storage module. There is only one type of storage
-    module usable at a time.
-    """
-
-    action_type: str = BridgingHubBaseModule.KEY_STORAGE
-
-    def input(self) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This storage module was configured in input."
-        )
-        return {}
-
-    def output(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        raise BrokenConfigException(
-            "This storage module was configured in output."
-        )
-        return {}
-
-    @abstractmethod
-    def write_cache(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        """Remember message content between in- and output."""
-        pass
-
-    @abstractmethod
-    def read_cache(self) -> dict[str, dict[str, str]]:
-        """Look up message content between in- and output."""
-        pass
-
-    @abstractmethod
-    def clean_cache(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        """Clean up the files remembered between in- and output."""
-        pass
-
-    @abstractmethod
-    def store(
-        self, message: dict[str, dict[str, str]]
-    ) -> dict[str, dict[str, str]]:
-        """Remember message content after output."""
-        pass
