@@ -146,6 +146,8 @@ def run_module_chain(action_name, config) -> bool:
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
     :raise: ModuleChainException"""
+    # TODO change the logic here to strictly just following the order set
+    # in the config, relying only on 'type' instead of the key name.
     try:
         # TODO testing here..
         # Load the storage module on request by config

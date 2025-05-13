@@ -17,7 +17,7 @@ configure and adapt to a wide range of use cases.
 
 ## Overview
 
-The bridge character can be visualized by the folloing chain and its
+The bridge character can be visualized by the folloing example pipeline and its
 corresponding module groups/types:
 
 ```
@@ -33,9 +33,14 @@ INPUT                                       OUTPUT
                                             #cleanup            .cleanup
 
                      ,--->#>---.                                ,-->#
-   ,------->::>-----+----------+---->::>----+------->::>-------'
+   ,------->::>-----+----------+---->::>----+--------->::>-----'
 >-'                                          '-->
 ```
+
+Many other scenarios are possible as the pipe leads through all the modules
+defined in the config.
+(We will probably add de-/multiplexer modules too later.)
+
 
 ## Setup
 
@@ -145,6 +150,7 @@ modules from your own Python path.
 ## Modules
 
 You can develop your own modules and place them anywhere in your Python path.
+Implement the respective base class and the relevant method(s).
 To use them, specify their location using the `module_path:` key in your
 configuration file.
 
