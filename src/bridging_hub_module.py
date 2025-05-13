@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from importlib import import_module
-from typing import Type, cast
+from typing import Callable, Type, cast
 
 from bridging_hub_types import (
     ConfigBaseType,
@@ -278,6 +278,41 @@ class CollectorBaseModule(InputBaseModule):
         :raise BrokenConfigException:
         """
         pass
+
+
+class ConsumerBaseModule(InputModuleException):
+    """
+    Abstract base module used by modules optionally connected to
+    data streams.
+    """
+
+    def __init__(self) -> None:
+        self.subscription: list[Callable] = []
+
+    @abstractmethod
+    def consume(self) -> None:
+        """
+        Abstract method used to connect to an external service.
+        """
+        pass
+
+    def subscribe(self, call: Callable) -> None:
+        """
+        Any method interested can subscribe here in order to receive
+        the data gathered in this input module.
+        """
+        self.subscription.append(call)
+
+    def on_data(self, data: dict[str, dict[str, str]]) -> None:
+        """
+        On data input, call this method to pass the data to all
+        parties interested.
+
+        :param data: single data element as dict
+        :rtype: dict
+        """
+        for c in self.subscription:
+            c(data)
 
 
 class SenderBaseModule(OutputBaseModule):
