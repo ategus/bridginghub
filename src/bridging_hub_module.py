@@ -97,11 +97,13 @@ class BridgingHubBaseModule(ABC):
     # these are keys used in the _custom_name map and are ment
     # to guarantee the accessibilty between different modulse
     KEY_BH_STATUS_NAME: str = "bHstatus_name"
-    KEY_DATA_VALUE_MAP: str = "value_register_map"
+    KEY_DATA_VALUE_MAP: str = "value_register_map"  # excluded in __init__
     KEY_GEOHASH_NAME: str = "geohash_name"
     KEY_ID_NAME: str = "id_name"
     KEY_LOCATION_NAME: str = "location_name"
     KEY_TIMESTAMP_NAME: str = "timestamp_name"
+    KEY_DATETIME_NAME: str = "datetime_name"
+    KEY_DATETIME_FORMAT_NAME: str = "datetime_format_name"
     KEY_TYPE_NAME: str = "type_name"
     KEY_VALUE_NAME: str = "value_name"
     KEY_UNIT_NAME: str = "unit_name"
@@ -138,6 +140,8 @@ class BridgingHubBaseModule(ABC):
             BridgingHubBaseModule.KEY_ID_NAME: "id",
             BridgingHubBaseModule.KEY_LOCATION_NAME: "location",
             BridgingHubBaseModule.KEY_TIMESTAMP_NAME: "timestamp",
+            BridgingHubBaseModule.KEY_DATETIME_NAME: "datetime",
+            BridgingHubBaseModule.KEY_DATETIME_FORMAT_NAME: "datetimeformat",
             BridgingHubBaseModule.KEY_TYPE_NAME: "type",
             BridgingHubBaseModule.KEY_VALUE_NAME: "value",
             BridgingHubBaseModule.KEY_UNIT_NAME: "unit",
