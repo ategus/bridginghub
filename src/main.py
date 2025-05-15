@@ -41,8 +41,8 @@ class ModuleLoaderException(Exception):
     pass
 
 
-class ModuleChainException(Exception):
-    """Failed to run the module chain as requested."""
+class ModulePipeException(Exception):
+    """Failed to run the module pipe as requested."""
 
     pass
 
@@ -99,7 +99,7 @@ def load_module(
 
     :param config config: The parameter map that was read from file
     :param str action_name: The name/type to register the module with
-    :param str segment: The name of the chain segment
+    :param str segment: The name of the pipe segment
     :rtype: BridgingHubBaseModule
     :return: Return the requested module
     :raise: ModuleLoaderException"""
@@ -138,14 +138,28 @@ but got {type(mp)}"""
         raise ModuleLoaderException(f"Unable to load module: {e}")
 
 
-def run_module_chain(action_name, config) -> bool:
-    """Execute a module using the parameters found in the config.
+def run_module_pipe(action_name, config) -> bool:
+    """Execute the modules as defined by the config file.
 
     :param str action_name: The name of the action type from the registry
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
-    :raise: ModuleChainException"""
+    :raise: ModulePipeException"""
+    print(config)
+    for pipe_name, pipe_config in config.items():
+        print(pipe_config["type"])
+    return True
+
+
+def run_module_pipe_old(action_name, config) -> bool:
+    """Execute module using the parameters found in the config.
+
+    :param str action_name: The name of the action type from the registry
+    :param dict config: The parameter map that was read from file
+    :rtype: bool
+    :return: Report success/failure and leave the rest to the caller
+    :raise: ModulePipeException"""
     # TODO change the logic here to strictly just following the order set
     # in the config, relying only on 'type' instead of the key name.
     try:
@@ -241,7 +255,7 @@ do get a timestamp and a value.",
         return True
     # TODO: input->prefilter->cache->filter->output->postfilter->store
     except (ModuleLoaderException, InputModuleException) as e:
-        raise ModuleChainException(f"Stopped running the module chain: {e}")
+        raise ModulePipeException(f"Stopped running the module pipe: {e}")
     # TODO how shall we exit eventually? Clean up should be done in the
     # submodule..?!
 
@@ -305,7 +319,7 @@ if __name__ == "__main__":
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
         if BridgingHubBaseModule.KEY_INPUT not in cfg:
-            raise ModuleChainException(
+            raise ModulePipeException(
                 "Please configure 'input' in the config file."
             )
         else:
@@ -318,7 +332,7 @@ if __name__ == "__main__":
                     ),
                 )
         if BridgingHubBaseModule.KEY_OUTPUT not in cfg:
-            raise ModuleChainException(
+            raise ModulePipeException(
                 "Please configure 'output' in the config file."
             )
         else:
@@ -349,7 +363,7 @@ if __name__ == "__main__":
                     ),
                 )
         if BridgingHubBaseModule.KEY_DATA not in cfg:
-            raise ModuleChainException(
+            raise ModulePipeException(
                 "Please configure 'data' in the config file."
             )
         else:
@@ -361,11 +375,18 @@ if __name__ == "__main__":
                         cfg_dir,
                     ),
                 )
-        run_module_chain(action_name, cfg)
+        if (
+            "_bridgingHub_major_version" in cfg
+            and cfg["_bridgingHub_major_version"]
+            and float(cfg["_bridgingHub_major_version"]) >= 1
+        ):
+            run_module_pipe(action_name, cfg)
+        else:
+            run_module_pipe_old(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
-    except ModuleChainException as e:
+    except ModulePipeException as e:
         print(f"The following error occurred: {e}")
         sys.exit(98)
