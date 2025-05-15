@@ -1,15 +1,17 @@
 
 #extend_python_path: []
 
+_bH_compat: 1.0
 input: "config/collect.d/example/example.yml"
 output: "config/send.d/example/example.yml"
 
-storage:
-  module_path: "module.storage.default_storage"
-  module_class_name: "DefaultStorageModule"
-  cache: "/tmp/bridgingHubTest/new"
-  junk: "/tmp/bridgingHubTest/junk"
-  archive: "/tmp/bridgingHubTest/archive"
+  #storage:
+  #module_type: "storage"
+  #module_path: "module.storage.default_storage"
+  #module_class_name: "DefaultStorageModule"
+  #cache: "/tmp/bridgingHubTest/new"
+  #junk: "/tmp/bridgingHubTest/junk"
+  #archive: "/tmp/bridgingHubTest/archive"
 
   #filter:
     #pre: # not implemented yet

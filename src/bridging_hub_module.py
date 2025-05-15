@@ -76,7 +76,7 @@ class BridgingHubBaseModule(ABC):
     # display generic keywords and prevent typos etc.
     KEY_BRIDGE: str = "bridge"
     KEY_CLEANUP: str = "cleanup"
-    KEY_DATA: str = "data"
+    KEY_DATA: str = "_data"
     KEY_INPUT: str = "input"
     KEY_OUTPUT: str = "output"
     KEY_FILTER: str = "filter"
@@ -93,6 +93,7 @@ class BridgingHubBaseModule(ABC):
     # keys refering to module loading
     KEY_ACTION_MODULE_NAME: str = "module_class_name"
     KEY_ACTION_MODULE_PATH: str = "module_path"
+    KEY_ACTION_MODULE_TYPE: str = "module_type"
 
     # these are keys used in the _custom_name map and are ment
     # to guarantee the accessibilty between different modulse

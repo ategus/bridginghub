@@ -2,7 +2,7 @@
 {
     "input": "config/collect.d/example/example.yml",
     "output": "",
-    "data": "config/data.d/example/example.yml"
+    "_data": "config/data.d/example/example.yml"
 }
 
 

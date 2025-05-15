@@ -26,6 +26,8 @@ from bridging_hub_types import (
     ConfigType,
 )
 
+VERSION_COMPAT = "_bH_compat"
+
 
 class IllegalFileOperation(Exception):
     """Custom Error to be raised on illegal file operations in order
@@ -41,7 +43,7 @@ class ModuleLoaderException(Exception):
     pass
 
 
-class ModulePipeException(Exception):
+class ModuleFlowException(Exception):
     """Failed to run the module pipe as requested."""
 
     pass
@@ -107,11 +109,15 @@ def load_module(
         ac = config[action_name]
         assert isinstance(
             ac, dict
-        ), f"Expected action_config to \
-be a dictionary, but got {type(ac)}"
+        ), f"Expected action_config to be a dictionary, but got {type(ac)}"
 
-        mn = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
-        mp = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_PATH]
+        try:
+            mn = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
+            mp = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_PATH]
+        except KeyError as e:
+            raise BrokenConfigException(
+                f"Relevant config: {action_name} {ac}: KeyError {e}"
+            )
         assert isinstance(
             mn, str
         ), f"""Expected module_name to be a string, \
@@ -138,17 +144,33 @@ but got {type(mp)}"""
         raise ModuleLoaderException(f"Unable to load module: {e}")
 
 
-def run_module_pipe(action_name, config) -> bool:
+def run_data_flow(action_name, config) -> bool:
     """Execute the modules as defined by the config file.
 
     :param str action_name: The name of the action type from the registry
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
-    :raise: ModulePipeException"""
-    print(config)
-    for pipe_name, pipe_config in config.items():
-        print(pipe_config["type"])
+    :raise: ModuleFlowException"""
+    # extract the data once
+    data: ConfigDataType = config.pop(BridgingHubBaseModule.KEY_DATA)
+    # this stores the processing order
+    flow: list[BridgingHubBaseModule] = []
+    # filter by action_name..
+    for segment_name, segment_config in config.items():
+        # action module type
+        t: str = segment_config[BridgingHubBaseModule.KEY_ACTION_MODULE_TYPE]
+        # register the module, and the processing order
+        print("processing:", action_name, segment_name)
+        flow.append(
+            load_module(
+                {t: segment_config, BridgingHubBaseModule.KEY_DATA: data},
+                t,
+                segment_name,
+            ),
+        )
+        print(len(flow))
+
     return True
 
 
@@ -159,9 +181,7 @@ def run_module_pipe_old(action_name, config) -> bool:
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
-    :raise: ModulePipeException"""
-    # TODO change the logic here to strictly just following the order set
-    # in the config, relying only on 'type' instead of the key name.
+    :raise: ModuleFlowException"""
     try:
         # TODO testing here..
         # Load the storage module on request by config
@@ -255,7 +275,7 @@ do get a timestamp and a value.",
         return True
     # TODO: input->prefilter->cache->filter->output->postfilter->store
     except (ModuleLoaderException, InputModuleException) as e:
-        raise ModulePipeException(f"Stopped running the module pipe: {e}")
+        raise ModuleFlowException(f"Stopped running the module pipe: {e}")
     # TODO how shall we exit eventually? Clean up should be done in the
     # submodule..?!
 
@@ -319,7 +339,7 @@ if __name__ == "__main__":
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
         if BridgingHubBaseModule.KEY_INPUT not in cfg:
-            raise ModulePipeException(
+            raise ModuleFlowException(
                 "Please configure 'input' in the config file."
             )
         else:
@@ -332,7 +352,7 @@ if __name__ == "__main__":
                     ),
                 )
         if BridgingHubBaseModule.KEY_OUTPUT not in cfg:
-            raise ModulePipeException(
+            raise ModuleFlowException(
                 "Please configure 'output' in the config file."
             )
         else:
@@ -363,7 +383,7 @@ if __name__ == "__main__":
                     ),
                 )
         if BridgingHubBaseModule.KEY_DATA not in cfg:
-            raise ModulePipeException(
+            raise ModuleFlowException(
                 "Please configure 'data' in the config file."
             )
         else:
@@ -375,18 +395,16 @@ if __name__ == "__main__":
                         cfg_dir,
                     ),
                 )
-        if (
-            "_bridgingHub_major_version" in cfg
-            and cfg["_bridgingHub_major_version"]
-            and float(cfg["_bridgingHub_major_version"]) >= 1
-        ):
-            run_module_pipe(action_name, cfg)
+        if VERSION_COMPAT in cfg and cfg[VERSION_COMPAT]:
+            v: float = float(cfg.pop(VERSION_COMPAT))
+            if v >= 1:
+                run_data_flow(action_name, cfg)
         else:
             run_module_pipe_old(action_name, cfg)
         sys.exit(0)  # all done here..
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
-    except ModulePipeException as e:
+    except ModuleFlowException as e:
         print(f"The following error occurred: {e}")
         sys.exit(98)

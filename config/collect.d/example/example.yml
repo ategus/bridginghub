@@ -1,4 +1,5 @@
 
+module_type: "input"
 module_path: "module.collect.stdin_collector"
 module_class_name: "StdinCollector"
 
