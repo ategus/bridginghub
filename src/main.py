@@ -117,8 +117,8 @@ def load_module(
         ), f"Expected action_config to be a dictionary, but got {type(ac)}"
 
         try:
-            mn = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
-            mp = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_PATH]
+            mn = ac[BridgingHubBaseModule.KEY_MODULE_NAME]
+            mp = ac[BridgingHubBaseModule.KEY_MODULE_PATH]
         except KeyError as e:
             raise BrokenConfigException(
                 f"Relevant config: {action_name} {ac}: KeyError {e}"
@@ -165,17 +165,19 @@ def run_data_flow(action_name, config) -> bool:
     if verbose:
         print("Loading all modules...")
     for segment_name, segment_config in config.items():
-        # module type
-        t: str = segment_config[
-            BridgingHubBaseModule.KEY_ACTION_MODULE_TYPE
+        module_type: str = segment_config[
+            BridgingHubBaseModule.KEY_MODULE_TYPE
         ].split(BridgingHubBaseModule.KEY_TYPE_SPLIT)[0]
         # register the module, and the processing order
         if verbose:
             print("  - Processing:", action_name, segment_name)
         flow.append(
             load_module(
-                {t: segment_config, BridgingHubBaseModule.KEY_DATA: data},
-                t,
+                {
+                    module_type: segment_config,
+                    BridgingHubBaseModule.KEY_DATA: data,
+                },
+                module_type,
                 segment_name,
             ),
         )
@@ -208,10 +210,10 @@ def run_module_pipe_old(action_name, config) -> bool:
         if (
             BridgingHubBaseModule.KEY_STORAGE in config
             and config[BridgingHubBaseModule.KEY_STORAGE]
-            and BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
+            and BridgingHubBaseModule.KEY_MODULE_NAME
             in config[BridgingHubBaseModule.KEY_STORAGE]
             and config[BridgingHubBaseModule.KEY_STORAGE][
-                BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
+                BridgingHubBaseModule.KEY_MODULE_NAME
             ]
         ):
             s = load_module(
