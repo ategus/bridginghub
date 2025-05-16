@@ -95,6 +95,7 @@ class BridgingHubBaseModule(ABC):
     KEY_ACTION_MODULE_NAME: str = "module_class_name"
     KEY_ACTION_MODULE_PATH: str = "module_path"
     KEY_ACTION_MODULE_TYPE: str = "module_type"
+    KEY_TYPE_SPLIT: str = ":"
     KEY_ACTION_SUBSCRIBE: str = "module_subscription"
 
     # these are keys used in the _custom_name map and are ment

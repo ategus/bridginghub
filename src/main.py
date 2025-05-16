@@ -162,12 +162,16 @@ def run_data_flow(action_name, config) -> bool:
     # this stores the processing order
     flow: list[BridgingHubBaseModule] = []
     # filter by action_name..
-    print("NEW")
+    if verbose:
+        print("Loading all modules...")
     for segment_name, segment_config in config.items():
-        # action module type
-        t: str = segment_config[BridgingHubBaseModule.KEY_ACTION_MODULE_TYPE]
+        # module type
+        t: str = segment_config[
+            BridgingHubBaseModule.KEY_ACTION_MODULE_TYPE
+        ].split(BridgingHubBaseModule.KEY_TYPE_SPLIT)[0]
         # register the module, and the processing order
-        print("processing:", action_name, segment_name)
+        if verbose:
+            print("  - Processing:", action_name, segment_name)
         flow.append(
             load_module(
                 {t: segment_config, BridgingHubBaseModule.KEY_DATA: data},
@@ -396,9 +400,7 @@ if __name__ == "__main__":
             print(f"Import config:\n{cfg}")
 
         if cfg_version >= 1:
-            if verbose:
-                print("Calling 'run_data_flow(action_name, cfg)' now.")
-            # run_data_flow(action_name, cfg)
+            run_data_flow(action_name, cfg)
         else:
             raise BrokenConfigException(
                 "Config version not supported. See `_bH: version`"
