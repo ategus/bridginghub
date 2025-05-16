@@ -76,24 +76,26 @@ class BridgingHubBaseModule(ABC):
     # display generic keywords and prevent typos etc.
     KEY_BRIDGE: str = "bridge"
     KEY_CLEANUP: str = "cleanup"
-    KEY_DATA: str = "_data"
     KEY_INPUT: str = "input"
     KEY_OUTPUT: str = "output"
     KEY_FILTER: str = "filter"
     KEY_STORAGE: str = "storage"
 
+    KEY_DATA: str = "_data"
+
     # these are actions a user can choose from at runtime from the cli
     KEY_ACTION_TYPES: list[str] = [
-        KEY_BRIDGE,
-        KEY_CLEANUP,
-        KEY_INPUT,
-        KEY_OUTPUT,
+        KEY_BRIDGE,  # default, subscribe to modules - fall back to linear
+        # TODO        KEY_CLEANUP,
+        KEY_INPUT,  # stop after input/cache, subscribe or linear
+        KEY_OUTPUT,  # start at cache, subscribe or linear
     ]
 
     # keys refering to module loading
     KEY_ACTION_MODULE_NAME: str = "module_class_name"
     KEY_ACTION_MODULE_PATH: str = "module_path"
     KEY_ACTION_MODULE_TYPE: str = "module_type"
+    KEY_ACTION_SUBSCRIBE: str = "module_subscription"
 
     # these are keys used in the _custom_name map and are ment
     # to guarantee the accessibilty between different modulse
@@ -147,30 +149,59 @@ class BridgingHubBaseModule(ABC):
             BridgingHubBaseModule.KEY_VALUE_NAME: "value",
             BridgingHubBaseModule.KEY_UNIT_NAME: "unit",
         }
+        # Let others subscribe to the data that get's processed
+        self._subscription: list[Callable] = []
 
     @abstractmethod
-    def input(self) -> dict[str, dict[str, str]]:
-        """
-        Abstract input method.
+    def dispatch(self, action_name: str) -> Callable | None:
+        """Abstract generic method for all runs, i.e. the implementing
+        module can deside, based on the config and action_name, whether
+        to subscribe with the main loop or with another module segment.
 
+        :param action_name: context to consider
+        :raise BrokenConfigException:"""
+        pass
+
+    def subscribe(self, call: Callable) -> None:
+        """
+        Any method interested can subscribe here in order to receive
+        the data gathered in this input module.
+        """
+        self._subscription.append(call)
+
+    def on_data(self, data: dict[str, dict[str, str]]) -> None:
+        """
+        On data input, call this method to pass the data to all
+        parties interested.
+
+        :param data: single data element as dict
+        :rtype: dict
+        """
+        for c in self._subscription:
+            c(data)
+
+    @abstractmethod
+    def input(
+        self, message: dict[str, dict[str, str]] = {}
+    ) -> dict[str, dict[str, str]]:
+        """Abstract input method.
+
+        :param message: optional data set as dict
         :rtype: dict
         :return: data set
-        :raise BrokenConfigException:
-        """
+        :raise BrokenConfigException:"""
         pass
 
     @abstractmethod
     def output(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
-        """
-        Abstract output method.
+        """Abstract output method.
 
         :param message: data set as dict
         :rtype: dict
         :return: data (sub-)set processed
-        :raise BrokenConfigException:
-        """
+        :raise BrokenConfigException:"""
         pass
 
     def configure(self, config: dict) -> None:
@@ -219,6 +250,44 @@ class InputBaseModule(BridgingHubBaseModule):
 
     action_type: str = BridgingHubBaseModule.KEY_INPUT
 
+    def dispatch(self, action_name: str) -> Callable | None:
+        """All input modules can be called from the main loop,
+        (eventually even blocking type) or by some other
+        module...
+
+        :param action_name: context to consider
+        :raise BrokenConfigException:"""
+        # Input modules:
+        # in 'bridge' or 'input' mode subscribe to defined modules
+        # or dispatch directly to main loop
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_INPUT
+        ):
+            if (
+                BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                in self._action_detail
+            ) and (
+                self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            ):
+                s = self._action_detail[
+                    BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                ]
+                if not isinstance(s, list):
+                    raise BrokenConfigException(
+                        f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
+MUST be a list, if defined."
+                    )
+                else:
+                    if len(s) <= 0:
+                        return self.input
+                    for subscription in s:
+                        mod = BridgingHubModuleRegistry._registry[subscription]
+                        mod.subscribe(self.input)
+            else:
+                return self.input
+        return None
+
     def output(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
@@ -243,7 +312,49 @@ class OutputBaseModule(BridgingHubBaseModule):
 
     action_type: str = BridgingHubBaseModule.KEY_OUTPUT
 
-    def input(self) -> dict[str, dict[str, str]]:
+    def dispatch(self, action_name: str) -> Callable | None:
+        """Output modules are to be called from the main loop,
+        (eventually even blocking type).
+
+        :param action_name: context to consider
+        :raise BrokenConfigException:"""
+        # Output modules:
+        # In 'bridge' or 'output' mode, subscribe to defined modules
+        # or dispatch directly to main loop
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_OUTPUT
+        ):
+            if (
+                BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                in self._action_detail
+            ) and (
+                self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            ):
+                s = self._action_detail[
+                    BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                ]
+                if not isinstance(s, list):
+                    raise BrokenConfigException(
+                        f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
+MUST be a list, if defined."
+                    )
+                else:
+                    if len(s) <= 0:
+                        return self.output
+                    for subscription in s:
+                        mod = BridgingHubModuleRegistry.load_module(
+                            subscription
+                        )
+                        mod.subscribe(self.input)
+            else:
+                return self.output
+        else:
+            return None
+
+    def input(
+        self, message: dict[str, dict[str, str]] = {}
+    ) -> dict[str, dict[str, str]]:
         """
         Fake input method in output module.
 
@@ -262,7 +373,9 @@ class CollectorBaseModule(InputBaseModule):
     Abstract base module used by modules collecting data.
     """
 
-    def input(self) -> dict[str, dict[str, str]]:
+    def input(
+        self, message: dict[str, dict[str, str]] = {}
+    ) -> dict[str, dict[str, str]]:
         """
         Default input method for collector modules.
 
@@ -291,33 +404,12 @@ class ConsumerBaseModule(InputModuleException):
     data streams.
     """
 
-    def __init__(self) -> None:
-        self.subscription: list[Callable] = []
-
     @abstractmethod
     def consume(self) -> None:
         """
         Abstract method used to connect to an external service.
         """
         pass
-
-    def subscribe(self, call: Callable) -> None:
-        """
-        Any method interested can subscribe here in order to receive
-        the data gathered in this input module.
-        """
-        self.subscription.append(call)
-
-    def on_data(self, data: dict[str, dict[str, str]]) -> None:
-        """
-        On data input, call this method to pass the data to all
-        parties interested.
-
-        :param data: single data element as dict
-        :rtype: dict
-        """
-        for c in self.subscription:
-            c(data)
 
 
 class SenderBaseModule(OutputBaseModule):
@@ -362,7 +454,51 @@ class FilterBaseModule(BridgingHubBaseModule):
 
     action_type: str = BridgingHubBaseModule.KEY_FILTER
 
-    def input(self) -> dict[str, dict[str, str]]:
+    def dispatch(self, action_name: str) -> Callable | None:
+        """All output modules can be called from the main loop,
+        but usually follow some other module...
+
+        :param action_name: context to consider
+        :raise BrokenConfigException:"""
+        # Filter modules:
+        # In 'input' or 'bridge' mode subscribe to defined modules
+        # or to main loop with write_cache.
+        # In 'output' mode, subscribe to modules or main loop,
+        # except as first one, i.e. an empty list, it would not
+        # change anything, as the messages will be empty..
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_INPUT
+        ):
+            if (
+                BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                in self._action_detail
+            ) and (
+                self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            ):
+                s = self._action_detail[
+                    BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                ]
+                if not isinstance(s, list):
+                    raise BrokenConfigException(
+                        f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
+MUST be a list, if defined."
+                    )
+                else:
+                    if len(s) <= 0:
+                        return self.filter
+                    for subscription in s:
+                        mod = BridgingHubModuleRegistry.load_module(
+                            subscription
+                        )
+                        mod.subscribe(self.input)
+            else:
+                return self.filter
+        return None
+
+    def input(
+        self, message: dict[str, dict[str, str]] = {}
+    ) -> dict[str, dict[str, str]]:
         raise BrokenConfigException(
             "This filter module was configured in input."
         )
@@ -392,7 +528,48 @@ class StorageBaseModule(BridgingHubBaseModule):
 
     action_type: str = BridgingHubBaseModule.KEY_STORAGE
 
-    def input(self) -> dict[str, dict[str, str]]:
+    def dispatch(self, action_name: str) -> Callable | None:
+        """All storage modules can be called from the main loop,
+        or follow some other module...
+
+        :param action_name: context to consider
+        :raise BrokenConfigException:"""
+        # Storage modules:
+        # In 'bridge' or 'input' mode, subscribe to defined modules or
+        # main loop. In 'output' mode dispatch to main loop with read_cache
+        if (
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_INPUT
+        ):
+            if (
+                BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                in self._action_detail
+            ) and (
+                self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            ):
+                s = self._action_detail[
+                    BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE
+                ]
+                if not isinstance(s, list):
+                    raise BrokenConfigException(
+                        f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
+MUST be a list, if defined."
+                    )
+                else:
+                    if len(s) <= 0:
+                        return self.write_cache
+                    for subscription in s:
+                        mod = BridgingHubModuleRegistry.load_module(
+                            subscription
+                        )
+                        mod.subscribe(self.write_cache)
+        elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
+            return self.read_cache
+        return None
+
+    def input(
+        self, message: dict[str, dict[str, str]] = {}
+    ) -> dict[str, dict[str, str]]:
         raise BrokenConfigException(
             "This storage module was configured in input."
         )
@@ -459,7 +636,7 @@ class BridgingHubModuleRegistry:
         :rtype: BridgingHubBaseModule
         :return: The registered BridgingHubBaseModule
         :raise NoSuchModuleException: (pass on)"""
-        n: str = segment_name + module_class_name
+        n: str = segment_name
         if n not in cls._registry:
             cls._registry[n] = {
                 BridgingHubModuleRegistry.KEY_MOD_PATH: module_path
@@ -480,7 +657,7 @@ class BridgingHubModuleRegistry:
         :rtype: a subclass of BridgingHubBaseModule
         :return: The class of the module.
         :raise NoSuchModuleException:"""
-        n: str = segment_name + module_class_name
+        n: str = segment_name
         # Test if the module was indeed registered
         if n not in cls._registry or not cls._registry[n]:
             raise NoSuchModuleException(

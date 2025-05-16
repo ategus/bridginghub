@@ -157,6 +157,7 @@ def run_data_flow(action_name, config) -> bool:
     # this stores the processing order
     flow: list[BridgingHubBaseModule] = []
     # filter by action_name..
+    print("NEW")
     for segment_name, segment_config in config.items():
         # action module type
         t: str = segment_config[BridgingHubBaseModule.KEY_ACTION_MODULE_TYPE]
@@ -171,6 +172,9 @@ def run_data_flow(action_name, config) -> bool:
         )
         print(len(flow))
 
+    for b in flow:
+        print("Module:", dir(b))
+
     return True
 
 
@@ -182,6 +186,7 @@ def run_module_pipe_old(action_name, config) -> bool:
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
     :raise: ModuleFlowException"""
+    print("OLD")
     try:
         # TODO testing here..
         # Load the storage module on request by config
