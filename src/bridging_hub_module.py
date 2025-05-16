@@ -87,8 +87,8 @@ class BridgingHubBaseModule(ABC):
     KEY_ACTION_TYPES: list[str] = [
         KEY_BRIDGE,  # default, subscribe to modules - fall back to linear
         # TODO        KEY_CLEANUP,
-        KEY_INPUT,  # stop after input/cache, subscribe or linear
-        KEY_OUTPUT,  # start at cache, subscribe or linear
+        KEY_INPUT,  # stop after input/buffer, subscribe or linear
+        KEY_OUTPUT,  # start at buffer, subscribe or linear
     ]
 
     # keys refering to module loading
@@ -463,7 +463,7 @@ class FilterBaseModule(BridgingHubBaseModule):
         :raise BrokenConfigException:"""
         # Filter modules:
         # In 'input' or 'bridge' mode subscribe to defined modules
-        # or to main loop with write_cache.
+        # or to main loop with write_buffer.
         # In 'output' mode, subscribe to modules or main loop,
         # except as first one, i.e. an empty list, it would not
         # change anything, as the messages will be empty..
@@ -537,7 +537,7 @@ class StorageBaseModule(BridgingHubBaseModule):
         :raise BrokenConfigException:"""
         # Storage modules:
         # In 'bridge' or 'input' mode, subscribe to defined modules or
-        # main loop. In 'output' mode dispatch to main loop with read_cache
+        # main loop. In 'output' mode dispatch to main loop with read_buffer
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_INPUT
@@ -558,14 +558,14 @@ MUST be a list, if defined."
                     )
                 else:
                     if len(s) <= 0:
-                        return self.write_cache
+                        return self.write_buffer
                     for subscription in s:
                         mod = BridgingHubModuleRegistry.load_module(
                             subscription
                         )
-                        mod.subscribe(self.write_cache)
+                        mod.subscribe(self.write_buffer)
         elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
-            return self.read_cache
+            return self.read_buffer
         return None
 
     def input(
@@ -585,19 +585,19 @@ MUST be a list, if defined."
         return {}
 
     @abstractmethod
-    def write_cache(
+    def write_buffer(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Remember message content between in- and output."""
         pass
 
     @abstractmethod
-    def read_cache(self) -> dict[str, dict[str, str]]:
+    def read_buffer(self) -> dict[str, dict[str, str]]:
         """Look up message content between in- and output."""
         pass
 
     @abstractmethod
-    def clean_cache(
+    def clean_buffer(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Clean up the files remembered between in- and output."""

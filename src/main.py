@@ -242,18 +242,18 @@ def run_module_pipe_old(action_name, config) -> bool:
 do get a timestamp and a value.",
                 )
             if isinstance(s, StorageBaseModule):
-                # write input to cache and return cached items
-                rc = s.write_cache(ri)
+                # write input to buffer and return bufferd items
+                rc = s.write_buffer(ri)
         elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
             if isinstance(s, StorageBaseModule):
-                # w/o input, just read from cache
-                rc = s.read_cache()
+                # w/o input, just read from buffer
+                rc = s.read_buffer()
             else:
-                # w/o input and cache, just load the config
+                # w/o input and buffer, just load the config
                 ri = config[BridgingHubBaseModule.KEY_DATA]
         if "verbose" in config and config["verbose"] == "True":
             if rc:
-                print("Data from cache: ", rc)
+                print("Data from buffer: ", rc)
         if (
             action_name == BridgingHubBaseModule.KEY_BRIDGE
             or action_name == BridgingHubBaseModule.KEY_OUTPUT
@@ -286,10 +286,10 @@ do get a timestamp and a value.",
             if ri:
                 print("Data from input: ", ri)
             if rc:
-                print("Data from cache: ", rc)
+                print("Data from buffer: ", rc)
 
         return True
-    # TODO: input->prefilter->cache->filter->output->postfilter->store
+    # TODO: input->prefilter->buffer->filter->output->postfilter->store
     except (ModuleLoaderException, InputModuleException) as e:
         raise ModuleFlowException(f"Stopped running the module pipe: {e}")
     # TODO how shall we exit eventually? Clean up should be done in the
