@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # using argparse as we want to keep dependencies minimal
 import argparse
-
-# import logging
-# TODO use logfile on demand..
+import logging
 import os
 
 # import shutil
@@ -348,10 +346,12 @@ if __name__ == "__main__":
             # get the config from the location provided by the user
             cfg = cast(ConfigType, load_config(args.config, cfg_dir))
 
+        # define meta config values and defaults
         cfg_version: float = 0
         logfile: str = ""
         logenc: str = "utf-8"
         loglevel: str = "ERROR"
+        # overwrite them with actual config settings
         if KEY_BH_CONFIG in cfg and cfg[KEY_BH_CONFIG]:
             bh = cfg.pop(KEY_BH_CONFIG)
             if not isinstance(bh, dict):
@@ -360,21 +360,24 @@ if __name__ == "__main__":
                 )
             if KEY_BH_VERSION_COMPAT in bh and bh[KEY_BH_VERSION_COMPAT]:
                 cfg_version = float(bh[KEY_BH_VERSION_COMPAT])
+            if KEY_BH_VERBOSE in bh and bh[KEY_BH_VERBOSE]:
+                verbose = bh[KEY_BH_VERBOSE]
             if KEY_BH_LOGFILE in bh and bh[KEY_BH_LOGFILE]:
                 logfile = bh[KEY_BH_LOGFILE]
             if KEY_BH_LOGENCODING in bh and bh[KEY_BH_LOGENCODING]:
                 logenc = bh[KEY_BH_LOGENCODING]
             if KEY_BH_LOGLEVEL in bh and bh[KEY_BH_LOGLEVEL]:
                 loglevel = bh[KEY_BH_LOGLEVEL]
-            if KEY_BH_VERBOSE in bh and bh[KEY_BH_VERBOSE]:
-                verbose = bh[KEY_BH_VERBOSE]
-
+        # again overwrite config params with CLI (it always wins)
+        if args.verbose:
+            verbose = True
         if args.logfile:
             logfile = args.logfile
         if args.loglevel:
             loglevel = args.loglevel
-        if args.verbose:
-            verbose = True
+
+        # add logging
+        logging.basicConfig(filename=logfile, encoding=logenc, level=loglevel)
 
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
