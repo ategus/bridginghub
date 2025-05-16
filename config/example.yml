@@ -6,17 +6,17 @@ _bH:
 _data: "config/data.d/example/example.yml"
 
 
-input: "config/collect.d/example/example.yml"
+stdinput: "config/collect.d/example/example.yml"
 
-buffer:
+tmpbuffer:
   module_type: "storage:buffer"
   module_path: "module.storage.default_storage"
   module_class_name: "DefaultStorageModule"
   cache: "/tmp/bridgingHubTest/new"
 
-output: "config/send.d/example/example.yml"
+stdoutput: "config/send.d/example/example.yml"
 
-archive:
+remember:
   module_type: "storage:archive"
   module_path: "module.storage.default_storage"
   module_class_name: "DefaultStorageModule"
@@ -29,6 +29,4 @@ archive:
     #main: # not implemented yet
     #post: # not implemented yet
 
-
-#async: False
 
