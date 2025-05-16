@@ -305,6 +305,12 @@ if __name__ == "__main__":
         help="""Central config file (mandatory).""",
         required=True,
     )
+    parser.add_argument("-l", "--logfile", help="""Name of the logfile."""),
+    parser.add_argument(
+        "-L",
+        "--loglevel",
+        help="""Log level: INFO, WARNING, ERROR, CRITICAL. (see --config.)""",
+    ),
     cwd = os.getcwd()
     parser.add_argument(
         "-w",
