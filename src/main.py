@@ -26,7 +26,14 @@ from bridging_hub_types import (
     ConfigType,
 )
 
-VERSION_COMPAT = "_bH_compat"
+KEY_BH_CONFIG = "_bH"
+KEY_BH_VERSION_COMPAT = "compat"
+KEY_BH_LOGFILE = "log_file"
+KEY_BH_LOGENCODING = "log_encoding"
+KEY_BH_LOGLEVEL = "log_level"
+KEY_BH_VERBOSE = "verbose"
+
+verbose = False
 
 
 class IllegalFileOperation(Exception):
@@ -340,79 +347,63 @@ if __name__ == "__main__":
         if args.config:
             # get the config from the location provided by the user
             cfg = cast(ConfigType, load_config(args.config, cfg_dir))
-        if "verbose" in cfg and cfg["verbose"]:
-            if cfg["verbose"] != "True" or cfg["verbose"] != "False":
+
+        cfg_version: float = 0
+        logfile: str = ""
+        logenc: str = "utf-8"
+        loglevel: str = "ERROR"
+        if KEY_BH_CONFIG in cfg and cfg[KEY_BH_CONFIG]:
+            bh = cfg.pop(KEY_BH_CONFIG)
+            if not isinstance(bh, dict):
                 raise BrokenConfigException(
-                    "The 'verbose' parameter is reserved, see flag '--verbose'"
+                    f"""'{KEY_BH_CONFIG}' must be a map in the config."""
                 )
+            if KEY_BH_VERSION_COMPAT in bh and bh[KEY_BH_VERSION_COMPAT]:
+                cfg_version = float(bh[KEY_BH_VERSION_COMPAT])
+            if KEY_BH_LOGFILE in bh and bh[KEY_BH_LOGFILE]:
+                logfile = bh[KEY_BH_LOGFILE]
+            if KEY_BH_LOGENCODING in bh and bh[KEY_BH_LOGENCODING]:
+                logenc = bh[KEY_BH_LOGENCODING]
+            if KEY_BH_LOGLEVEL in bh and bh[KEY_BH_LOGLEVEL]:
+                loglevel = bh[KEY_BH_LOGLEVEL]
+            if KEY_BH_VERBOSE in bh and bh[KEY_BH_VERBOSE]:
+                verbose = bh[KEY_BH_VERBOSE]
+
+        if args.logfile:
+            logfile = args.logfile
+        if args.loglevel:
+            loglevel = args.loglevel
         if args.verbose:
-            cfg["verbose"] = "True"
+            verbose = True
+
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        if BridgingHubBaseModule.KEY_INPUT not in cfg:
-            raise ModuleFlowException(
-                "Please configure 'input' in the config file."
-            )
-        else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
-                cfg[BridgingHubBaseModule.KEY_INPUT] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_INPUT],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_OUTPUT not in cfg:
-            raise ModuleFlowException(
-                "Please configure 'output' in the config file."
-            )
-        else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
-                cfg[BridgingHubBaseModule.KEY_OUTPUT] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_OUTPUT],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_STORAGE in cfg:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_STORAGE], str):
-                cfg[BridgingHubBaseModule.KEY_STORAGE] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_STORAGE],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_FILTER in cfg:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
-                cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_FILTER],
-                        cfg_dir,
-                    ),
-                )
+
+        for k, v in cfg.items():
+            if isinstance(v, str):
+                cfg[k] = cast(ConfigSubType, load_config(v, cfg_dir))
+
         if BridgingHubBaseModule.KEY_DATA not in cfg:
             raise ModuleFlowException(
-                "Please configure 'data' in the config file."
+                f"""Please configure '\
+{BridgingHubBaseModule.KEY_DATA}' in the config file."""
             )
+
+        if verbose:
+            print(f"Import config:\n{cfg}")
+
+        if cfg_version >= 1:
+            if verbose:
+                print("Calling 'run_data_flow(action_name, cfg)' now.")
+            # run_data_flow(action_name, cfg)
         else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
-                cfg[BridgingHubBaseModule.KEY_DATA] = cast(
-                    ConfigDataType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_DATA],
-                        cfg_dir,
-                    ),
-                )
-        if VERSION_COMPAT in cfg and cfg[VERSION_COMPAT]:
-            v: float = float(cfg.pop(VERSION_COMPAT))
-            if v >= 1:
-                run_data_flow(action_name, cfg)
-        else:
-            run_module_pipe_old(action_name, cfg)
+            raise BrokenConfigException(
+                "Config version not supported. See `_bH: version`"
+            )
         sys.exit(0)  # all done here..
+    except BrokenConfigException as e:
+        print(f"Can not go on without config: {e}")
+        sys.exit(1)
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
