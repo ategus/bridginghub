@@ -100,18 +100,18 @@ the problem was: {e}"""
 
 
 def load_module(
-    config: ConfigType, action_name: str, segment_name: str = "default"
+    config: ConfigType, module_type: str, segment_name: str = "default"
 ) -> BridgingHubBaseModule:
     """Wrapper to load all modulues uniformely (and no-brain-ly).
 
     :param config config: The parameter map that was read from file
-    :param str action_name: The name/type to register the module with
-    :param str segment: The name of the pipe segment
+    :param str module_type: The control type of the module
+    :param str segment: The name of the segment to register module with
     :rtype: BridgingHubBaseModule
     :return: Return the requested module
     :raise: ModuleLoaderException"""
     try:
-        ac = config[action_name]
+        ac = config[module_type]
         assert isinstance(
             ac, dict
         ), f"Expected action_config to be a dictionary, but got {type(ac)}"
@@ -121,7 +121,7 @@ def load_module(
             mp = ac[BridgingHubBaseModule.KEY_MODULE_PATH]
         except KeyError as e:
             raise BrokenConfigException(
-                f"Relevant config: {action_name} {ac}: KeyError {e}"
+                f"Relevant config: {module_type} {ac}: KeyError {e}"
             )
         assert isinstance(
             mn, str
@@ -133,9 +133,9 @@ but got {type(mn)}"""
 but got {type(mp)}"""
 
         m = BridgingHubModuleRegistry.register_module(segment_name, mn, mp)
-        if m.action_type != action_name:
+        if m.action_type != module_type:
             raise BrokenConfigException(
-                f"""The config for '{action_name}' holds a module of type \
+                f"""The config for '{module_type}' holds a module of type \
 '{m.action_type}'."""
             )
         m.configure(config)
