@@ -1,30 +1,36 @@
 #!/usr/bin/env python3
 # using argparse as we want to keep dependencies minimal
 import argparse
-
-# import logging
-# TODO use logfile on demand..
+import inspect
+import logging
 import os
 
 # import shutil
 import sys
 from os.path import join
-from typing import cast
+from typing import Any, Callable, cast
 
-from bridging_hub_module import (
+from bridging_hub_module import (  # InputModuleException,; StorageBaseModule,
     BridgingHubBaseModule,
     BridgingHubModuleRegistry,
     BrokenConfigException,
     DuplicatedModuleException,
-    InputModuleException,
     NoSuchModuleException,
-    StorageBaseModule,
 )
 from bridging_hub_types import (
     ConfigDataType,
     ConfigSubType,
     ConfigType,
 )
+
+KEY_BH_CONFIG = "_bH"
+KEY_BH_VERSION_COMPAT = "compat"
+KEY_BH_LOGFILE = "log_file"
+KEY_BH_LOGENCODING = "log_encoding"
+KEY_BH_LOGLEVEL = "log_level"
+KEY_BH_VERBOSE = "verbose"
+
+verbose = False
 
 
 class IllegalFileOperation(Exception):
@@ -41,8 +47,8 @@ class ModuleLoaderException(Exception):
     pass
 
 
-class ModuleChainException(Exception):
-    """Failed to run the module chain as requested."""
+class ModuleFlowException(Exception):
+    """Failed to run the module pipe as requested."""
 
     pass
 
@@ -93,25 +99,29 @@ the problem was: {e}"""
 
 
 def load_module(
-    config: ConfigType, action_name: str, segment_name: str = "default"
+    config: ConfigType, module_type: str, segment_name: str = "default"
 ) -> BridgingHubBaseModule:
     """Wrapper to load all modulues uniformely (and no-brain-ly).
 
     :param config config: The parameter map that was read from file
-    :param str action_name: The name/type to register the module with
-    :param str segment: The name of the chain segment
+    :param str module_type: The control type of the module
+    :param str segment: The name of the segment to register module with
     :rtype: BridgingHubBaseModule
     :return: Return the requested module
     :raise: ModuleLoaderException"""
     try:
-        ac = config[action_name]
+        ac = config[module_type]
         assert isinstance(
             ac, dict
-        ), f"Expected action_config to \
-be a dictionary, but got {type(ac)}"
+        ), f"Expected action_config to be a dictionary, but got {type(ac)}"
 
-        mn = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_NAME]
-        mp = ac[BridgingHubBaseModule.KEY_ACTION_MODULE_PATH]
+        try:
+            mn = ac[BridgingHubBaseModule.KEY_MODULE_NAME]
+            mp = ac[BridgingHubBaseModule.KEY_MODULE_PATH]
+        except KeyError as e:
+            raise BrokenConfigException(
+                f"Relevant config: {module_type} {ac}: KeyError {e}"
+            )
         assert isinstance(
             mn, str
         ), f"""Expected module_name to be a string, \
@@ -122,9 +132,9 @@ but got {type(mn)}"""
 but got {type(mp)}"""
 
         m = BridgingHubModuleRegistry.register_module(segment_name, mn, mp)
-        if m.action_type != action_name:
+        if m.action_type != module_type:
             raise BrokenConfigException(
-                f"""The config for '{action_name}' holds a module of type \
+                f"""The config for '{module_type}' holds a module of type \
 '{m.action_type}'."""
             )
         m.configure(config)
@@ -138,112 +148,64 @@ but got {type(mp)}"""
         raise ModuleLoaderException(f"Unable to load module: {e}")
 
 
-def run_module_chain(action_name, config) -> bool:
-    """Execute a module using the parameters found in the config.
+def run_data_flow(action_name, config) -> bool:
+    """Execute the modules as defined by the config file.
 
     :param str action_name: The name of the action type from the registry
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
-    :raise: ModuleChainException"""
-    # TODO change the logic here to strictly just following the order set
-    # in the config, relying only on 'type' instead of the key name.
-    try:
-        # TODO testing here..
-        # Load the storage module on request by config
-        m: BridgingHubBaseModule | None = None
-        s: BridgingHubBaseModule | None = None
-        ri: dict[str, dict[str, str]] = {}
-        rc: dict[str, dict[str, str]] = {}
-        ro: dict[str, dict[str, str]] = {}
-        re: dict[str, dict[str, str]] = {}
-        if (
-            BridgingHubBaseModule.KEY_STORAGE in config
-            and config[BridgingHubBaseModule.KEY_STORAGE]
-            and BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
-            in config[BridgingHubBaseModule.KEY_STORAGE]
-            and config[BridgingHubBaseModule.KEY_STORAGE][
-                BridgingHubBaseModule.KEY_ACTION_MODULE_NAME
-            ]
-        ):
-            s = load_module(
-                config, BridgingHubBaseModule.KEY_STORAGE, "default"
-            )
+    :raise: AssertionError
+    :raise: ModuleFlowException"""
+    # extract the data once
+    data: ConfigDataType = config.pop(BridgingHubBaseModule.KEY_DATA)
+    # this stores the processing order
+    flow: list[Callable] = []
+    # filter by action_name..
+    if verbose:
+        print(f"Loading all relevant modules for action '{action_name}'...")
+    logging.debug(f"Action mode is {action_name}")
+    logging.info("Load and dispatch modules from config.")
+    for segment_name, segment_config in config.items():
+        # extract the module_type from config (ignoring the optional subtype)
+        # and use it in load_module()
+        module_type: str = segment_config[
+            BridgingHubBaseModule.KEY_MODULE_TYPE
+        ].split(BridgingHubBaseModule.KEY_TYPE_SPLIT)[0]
+        # register the module, and the processing order
+        if verbose:
+            print("  - found:", action_name, segment_name)
+        logging.debug(f"Found module {segment_name}")
+        m = load_module(
+            {
+                module_type: segment_config,
+                BridgingHubBaseModule.KEY_DATA: data,
+            },
+            module_type,
+            segment_name,
+        )
+        logging.debug(f"Added module {m.the_name}")
+        # let the module subscribe with others and tell it
+        # about the action context the user requested
+        c = cast(
+            Callable[[BridgingHubBaseModule], Any], m.dispatch(action_name)
+        )
+        if c is not None:
+            flow.append(c)
 
-        # Load input module on request by action or default to data
-        if (
-            action_name == BridgingHubBaseModule.KEY_BRIDGE
-            or action_name == BridgingHubBaseModule.KEY_INPUT
-        ):
-            m = load_module(config, BridgingHubBaseModule.KEY_INPUT, "default")
-            # get the infos from input
-            ri = m.input()
-            if "verbose" in config and config["verbose"] == "True":
-                if ri:
-                    print("Data from input: ", ri)
-            if (
-                config[BridgingHubBaseModule.KEY_DATA][
-                    BridgingHubBaseModule.KEY_DATA_VALUE_MAP
-                ].keys()
-                != ri.keys()
-            ):
-                raise InputModuleException(
-                    "Every module MUST make sure all configured data points \
-do get a timestamp and a value.",
-                )
-            if isinstance(s, StorageBaseModule):
-                # write input to cache and return cached items
-                rc = s.write_cache(ri)
-        elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
-            if isinstance(s, StorageBaseModule):
-                # w/o input, just read from cache
-                rc = s.read_cache()
-            else:
-                # w/o input and cache, just load the config
-                ri = config[BridgingHubBaseModule.KEY_DATA]
-        if "verbose" in config and config["verbose"] == "True":
-            if rc:
-                print("Data from cache: ", rc)
-        if (
-            action_name == BridgingHubBaseModule.KEY_BRIDGE
-            or action_name == BridgingHubBaseModule.KEY_OUTPUT
-        ):
-            m = load_module(
-                config, BridgingHubBaseModule.KEY_OUTPUT, "default"
-            )
-            if ri:
-                ro = m.output(ri)
-            elif rc:
-                ro = m.output(rc)
-            if isinstance(s, StorageBaseModule):
-                # process current data mv timestamp_datakey.json from new
-                # to junk or archive based on marker from output..
-                re = s.store(ro)
-            if "verbose" in config and config["verbose"] == "True":
-                if ro:
-                    print("Data from output:", ro)
-                if re:
-                    print("Data from storage:", re)
-        elif action_name == BridgingHubBaseModule.KEY_CLEANUP:
-            if isinstance(s, StorageBaseModule):
-                pass  # cleanup
-            else:
-                raise BrokenConfigException(
-                    "Action 'cleanup' only makes sense if \
-'storage' is configured."
-                )
-        else:  # action_name == BridgingHubBaseModule.KEY_INPUT (no output)
-            if ri:
-                print("Data from input: ", ri)
-            if rc:
-                print("Data from cache: ", rc)
-
-        return True
-    # TODO: input->prefilter->cache->filter->output->postfilter->store
-    except (ModuleLoaderException, InputModuleException) as e:
-        raise ModuleChainException(f"Stopped running the module chain: {e}")
-    # TODO how shall we exit eventually? Clean up should be done in the
-    # submodule..?!
+    if verbose:
+        print("Let the data flow..")
+    logging.info("Starting the main data flow.")
+    msg: dict = {}
+    for c in flow:
+        assert inspect.ismethod(c), "Can only use method calls here."
+        assert isinstance(c.__self__, BridgingHubBaseModule), "Invalid Module."
+        msg = c(msg)
+        logging.info(
+            f"""{c.__self__.the_name}<{c.__self__.__class__.__name__}>.\
+{c.__name__}(msg): {str(msg)}"""
+        )
+    return True
 
 
 if __name__ == "__main__":
@@ -266,6 +228,12 @@ if __name__ == "__main__":
         help="""Central config file (mandatory).""",
         required=True,
     )
+    parser.add_argument("-l", "--logfile", help="""Name of the logfile."""),
+    parser.add_argument(
+        "-L",
+        "--loglevel",
+        help="""Log level: INFO, WARNING, ERROR, CRITICAL. (see --config.)""",
+    ),
     cwd = os.getcwd()
     parser.add_argument(
         "-w",
@@ -295,77 +263,69 @@ if __name__ == "__main__":
         if args.config:
             # get the config from the location provided by the user
             cfg = cast(ConfigType, load_config(args.config, cfg_dir))
-        if "verbose" in cfg and cfg["verbose"]:
-            if cfg["verbose"] != "True" or cfg["verbose"] != "False":
+
+        # define meta config values and defaults
+        cfg_version: float = 0
+        logfile: str = ""
+        logenc: str = "utf-8"
+        loglevel: str = "ERROR"
+        # overwrite them with actual config settings
+        if KEY_BH_CONFIG in cfg and cfg[KEY_BH_CONFIG]:
+            bh = cfg.pop(KEY_BH_CONFIG)
+            if not isinstance(bh, dict):
                 raise BrokenConfigException(
-                    "The 'verbose' parameter is reserved, see flag '--verbose'"
+                    f"""'{KEY_BH_CONFIG}' must be a map in the config."""
                 )
+            if KEY_BH_VERSION_COMPAT in bh and bh[KEY_BH_VERSION_COMPAT]:
+                cfg_version = float(bh[KEY_BH_VERSION_COMPAT])
+            if KEY_BH_VERBOSE in bh and bh[KEY_BH_VERBOSE]:
+                verbose = bh[KEY_BH_VERBOSE]
+            if KEY_BH_LOGFILE in bh and bh[KEY_BH_LOGFILE]:
+                logfile = bh[KEY_BH_LOGFILE]
+            if KEY_BH_LOGENCODING in bh and bh[KEY_BH_LOGENCODING]:
+                logenc = bh[KEY_BH_LOGENCODING]
+            if KEY_BH_LOGLEVEL in bh and bh[KEY_BH_LOGLEVEL]:
+                loglevel = bh[KEY_BH_LOGLEVEL]
+        # again overwrite config params with CLI (it always wins)
         if args.verbose:
-            cfg["verbose"] = "True"
+            verbose = True
+        if args.logfile:
+            logfile = args.logfile
+        if args.loglevel:
+            loglevel = args.loglevel
+
+        # add logging
+        logging.basicConfig(filename=logfile, encoding=logenc, level=loglevel)
+
         # the rest of the config may either also come from cli, or the
         # single or split config file(s)
-        if BridgingHubBaseModule.KEY_INPUT not in cfg:
-            raise ModuleChainException(
-                "Please configure 'input' in the config file."
-            )
-        else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_INPUT], str):
-                cfg[BridgingHubBaseModule.KEY_INPUT] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_INPUT],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_OUTPUT not in cfg:
-            raise ModuleChainException(
-                "Please configure 'output' in the config file."
-            )
-        else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_OUTPUT], str):
-                cfg[BridgingHubBaseModule.KEY_OUTPUT] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_OUTPUT],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_STORAGE in cfg:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_STORAGE], str):
-                cfg[BridgingHubBaseModule.KEY_STORAGE] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_STORAGE],
-                        cfg_dir,
-                    ),
-                )
-        if BridgingHubBaseModule.KEY_FILTER in cfg:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_FILTER], str):
-                cfg[BridgingHubBaseModule.KEY_FILTER] = cast(
-                    ConfigSubType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_FILTER],
-                        cfg_dir,
-                    ),
-                )
+
+        for k, v in cfg.items():
+            if isinstance(v, str):
+                cfg[k] = cast(ConfigSubType, load_config(v, cfg_dir))
+
         if BridgingHubBaseModule.KEY_DATA not in cfg:
-            raise ModuleChainException(
-                "Please configure 'data' in the config file."
+            raise ModuleFlowException(
+                f"""Please configure '\
+{BridgingHubBaseModule.KEY_DATA}' in the config file."""
             )
+
+        if verbose:
+            print(f"Import config:\n{cfg}")
+
+        if cfg_version >= 1:
+            run_data_flow(action_name, cfg)
         else:
-            if isinstance(cfg[BridgingHubBaseModule.KEY_DATA], str):
-                cfg[BridgingHubBaseModule.KEY_DATA] = cast(
-                    ConfigDataType,
-                    load_config(
-                        cfg[BridgingHubBaseModule.KEY_DATA],
-                        cfg_dir,
-                    ),
-                )
-        run_module_chain(action_name, cfg)
+            raise BrokenConfigException(
+                "Config version not supported. See `_bH: version`"
+            )
         sys.exit(0)  # all done here..
+    except BrokenConfigException as e:
+        print(f"Can not go on without config: {e}")
+        sys.exit(1)
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
-    except ModuleChainException as e:
+    except (AssertionError, ModuleFlowException) as e:
         print(f"The following error occurred: {e}")
         sys.exit(98)

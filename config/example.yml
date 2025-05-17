@@ -1,22 +1,32 @@
 
-#extend_python_path: []
+_bH:
+  compat: 1.0
+  #TODOextend_python_path: []
 
-input: "config/collect.d/example/example.yml"
-output: "config/send.d/example/example.yml"
+_data: "config/data.d/example/example.yml"
 
-storage:
+
+stdinput: "config/collect.d/example/example.yml"
+
+tmpbuffer:
+  module_type: "storage:buffer"
   module_path: "module.storage.default_storage"
   module_class_name: "DefaultStorageModule"
-  cache: "/tmp/bridgingHubTest/new"
+  buffer: "/tmp/bridgingHubTest/new"
+
+stdoutput: "config/send.d/example/example.yml"
+
+remember:
+  module_type: "storage:archive"
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  buffer: "/tmp/bridgingHubTest/new"
   junk: "/tmp/bridgingHubTest/junk"
   archive: "/tmp/bridgingHubTest/archive"
 
-filter:
-  pre: # not implemented yet
-  main: # not implemented yet
-  post: # not implemented yet
+  #filter:
+    #pre: # not implemented yet
+    #main: # not implemented yet
+    #post: # not implemented yet
 
-data: "config/data.d/example/example.yml"
-
-#async: False
 

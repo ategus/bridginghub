@@ -17,7 +17,7 @@ class StdoutSender(SenderBaseModule):
             if v[self._custom_name[StdoutSender.KEY_BH_STATUS_NAME]] == "in":
                 s = "INPUT"
             else:
-                s = "CACHE"
+                s = "BUFFER"
             # NOTE: If you write other output modules, you might want to
             # catch certain Exceptions here and try to go on with the next
             # datapoint marking it 'failed' instead of 'out'... (see also

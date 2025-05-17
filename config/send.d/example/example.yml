@@ -1,2 +1,4 @@
+
+module_type: "output"
 module_path: "module.send.stdout_sender"
 module_class_name: "StdoutSender"

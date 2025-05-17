@@ -34,14 +34,14 @@ class FileReadException(Exception):
 
 class DefaultStorageModule(StorageBaseModule):
     """
-    Message content can be cached and archived or broken messages identified.
+    Message content can be bufferd and archived or broken messages identified.
     """
 
-    KEY_CACHE: str = "cache"
+    KEY_BUFFER: str = "buffer"
     KEY_JUNK: str = "junk"
     KEY_ARCHIVE: str = "archive"
 
-    _cachedir: str = ""
+    _bufferdir: str = ""
 
     def _test_dir(self, dir_type: str, sub_dir: str = "") -> Path | None:
         """Check for and prepare storage directory.
@@ -118,7 +118,7 @@ due to: {e}"""
                     )
         return m
 
-    def write_cache(
+    def write_buffer(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Remember message content between in- and output.
@@ -127,9 +127,9 @@ due to: {e}"""
         :return: the data written to disk
         :raise: StorageModuleException"""
         try:
-            d = self._test_dir(DefaultStorageModule.KEY_CACHE)
+            d = self._test_dir(DefaultStorageModule.KEY_BUFFER)
             if d:
-                return self._write_files(message, d, "cached")
+                return self._write_files(message, d, "bufferd")
             else:
                 return {}
         except (
@@ -137,17 +137,17 @@ due to: {e}"""
             FileWriteException,
         ) as e:
             raise StorageModuleException(
-                f"Failed to write to cache, due to: {e}"
+                f"Failed to write to buffer, due to: {e}"
             )
 
-    def _find_cached(self) -> dict[str, list[Path]]:
+    def _find_bufferd(self) -> dict[str, list[Path]]:
         """Find messages hanging between in- and output.
         :rtype: dict[str, list[Path]]
         :return: A list of file paths per data entry
         :raise: DirectoryAccessException"""
         l: dict[str, list[Path]] = {}
         try:
-            d = self._test_dir(DefaultStorageModule.KEY_CACHE)
+            d = self._test_dir(DefaultStorageModule.KEY_BUFFER)
             if d:
                 for k in self._data[DefaultStorageModule.KEY_DATA_VALUE_MAP]:
                     l[k] = []
@@ -156,35 +156,35 @@ due to: {e}"""
             return l
         except Exception as e:
             raise DirectoryAccessException(
-                f"Blocked from searching cache: {e}"
+                f"Blocked from searching buffer: {e}"
             )
 
-    def read_cache(self) -> dict[str, dict[str, str]]:
+    def read_buffer(self) -> dict[str, dict[str, str]]:
         """Look up first message content hanging between in- and output.
         :rtype: dict[str, dict[str, str]]
-        :return: the oldest message from cache
+        :return: the oldest message from buffer
         :raise: StorageModuleException"""
         m: dict[str, dict[str, str]] = {}
         try:
-            c = self._find_cached()
+            c = self._find_bufferd()
             for k in c:
                 with open(c[k][0], "r") as f:
                     m[k] = json.load(f)
             return m
         except Exception as e:
-            raise StorageModuleException(f"Could not read cache: {e}")
+            raise StorageModuleException(f"Could not read buffer: {e}")
 
-    def clean_cache(
+    def clean_buffer(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Clean up the files remembered between in- and output.
         :param message: the data items to go through
         :rtype: dict[str, dict[str, str]]
-        :return: the messages removed from cache
+        :return: the messages removed from buffer
         :raise: StorageModuleException"""
         m: dict[str, dict[str, str]] = {}
         try:
-            d = self._test_dir(DefaultStorageModule.KEY_CACHE)
+            d = self._test_dir(DefaultStorageModule.KEY_BUFFER)
             if d:
                 for k, v in message.items():
                     f = self._name_file(d, k, v)
@@ -192,13 +192,13 @@ due to: {e}"""
                     m[k] = v
             return m
         except Exception as e:
-            raise StorageModuleException(f"Unable to clean cache: {e}")
+            raise StorageModuleException(f"Unable to clean buffer: {e}")
 
     def store(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
         """Remember message content after output.
-        :param message: the sent data to be compared to the cache
+        :param message: the sent data to be compared to the buffer
         :rtype: dict[str, dict[str, str]]
         :return: the messages processed
         :raise: StorageModuleException"""
@@ -206,7 +206,7 @@ due to: {e}"""
         d = datetime.now(timezone.utc).date().strftime("%Y/%m/%d")
 
         try:
-            cache_path = self._test_dir(DefaultStorageModule.KEY_CACHE)
+            buffer_path = self._test_dir(DefaultStorageModule.KEY_BUFFER)
             archive_path = self._test_dir(DefaultStorageModule.KEY_ARCHIVE, d)
             junk_path = self._test_dir(DefaultStorageModule.KEY_JUNK)
         except DirectoryAccessException as e:
@@ -226,7 +226,7 @@ due to: {e}"""
 
         # define a separate map for failed messages to handle later
         mfailed: dict[str, dict[str, str]] = {}
-        if cache_path:
+        if buffer_path:
             for k, v in message.items():
                 if (
                     v[
@@ -242,15 +242,15 @@ due to: {e}"""
                     m[k] = v
             try:
                 _ = self._write_files(mfailed, junk_path, "broken")
-                _ = self.clean_cache(mfailed)
+                _ = self.clean_buffer(mfailed)
                 m = self._write_files(m, archive_path, "done")
-                _ = self.clean_cache(m)
+                _ = self.clean_buffer(m)
             except (FileWriteException, StorageModuleException) as e:
                 raise StorageModuleException(
-                    f'Died while "moving" cached files to archive: {e}'
+                    f'Died while "moving" bufferd files to archive: {e}'
                 )
         else:
-            # as cache path is not set, write output
+            # as buffer path is not set, write output
 
             for k, v in message.items():
                 if (
@@ -271,6 +271,6 @@ due to: {e}"""
                 m = self._write_files(m, archive_path, "done")
             except FileWriteException as e:
                 raise StorageModuleException(
-                    f"Died while writing uncached files to archive: {e}"
+                    f"Died while writing unbufferd files to archive: {e}"
                 )
         return m
