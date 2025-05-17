@@ -7,16 +7,14 @@ import os
 # import shutil
 import sys
 from os.path import join
-from typing import cast
+from typing import Callable, cast
 
-from bridging_hub_module import (
+from bridging_hub_module import (  # InputModuleException,; StorageBaseModule,
     BridgingHubBaseModule,
     BridgingHubModuleRegistry,
     BrokenConfigException,
     DuplicatedModuleException,
-    InputModuleException,
     NoSuchModuleException,
-    StorageBaseModule,
 )
 from bridging_hub_types import (
     ConfigDataType,
@@ -160,10 +158,10 @@ def run_data_flow(action_name, config) -> bool:
     # extract the data once
     data: ConfigDataType = config.pop(BridgingHubBaseModule.KEY_DATA)
     # this stores the processing order
-    flow: list[BridgingHubBaseModule] = []
+    flow: list[Callable] = []
     # filter by action_name..
     if verbose:
-        print("Loading all modules...")
+        print(f"Loading all relevant modules for action '{action_name}'...")
     for segment_name, segment_config in config.items():
         module_type: str = segment_config[
             BridgingHubBaseModule.KEY_MODULE_TYPE
@@ -171,129 +169,27 @@ def run_data_flow(action_name, config) -> bool:
         # register the module, and the processing order
         if verbose:
             print("  - Processing:", action_name, segment_name)
-        flow.append(
-            load_module(
-                {
-                    module_type: segment_config,
-                    BridgingHubBaseModule.KEY_DATA: data,
-                },
-                module_type,
-                segment_name,
-            ),
+        m = load_module(
+            {
+                module_type: segment_config,
+                BridgingHubBaseModule.KEY_DATA: data,
+            },
+            module_type,
+            segment_name,
         )
+        # let the module subscribe with others and tell it
+        # about the action context the user requested
+        c = m.dispatch(action_name)
+        if c:
+            flow.append(c)
         print(len(flow))
 
-    for b in flow:
-        print("Module:", dir(b))
+    msg: dict = {}
+    for c in flow:
+        print("Module:", dir(c))
+        msg = c(msg)
 
     return True
-
-
-def run_module_pipe_old(action_name, config) -> bool:
-    """Execute module using the parameters found in the config.
-
-    :param str action_name: The name of the action type from the registry
-    :param dict config: The parameter map that was read from file
-    :rtype: bool
-    :return: Report success/failure and leave the rest to the caller
-    :raise: ModuleFlowException"""
-    print("OLD")
-    try:
-        # TODO testing here..
-        # Load the storage module on request by config
-        m: BridgingHubBaseModule | None = None
-        s: BridgingHubBaseModule | None = None
-        ri: dict[str, dict[str, str]] = {}
-        rc: dict[str, dict[str, str]] = {}
-        ro: dict[str, dict[str, str]] = {}
-        re: dict[str, dict[str, str]] = {}
-        if (
-            BridgingHubBaseModule.KEY_STORAGE in config
-            and config[BridgingHubBaseModule.KEY_STORAGE]
-            and BridgingHubBaseModule.KEY_MODULE_NAME
-            in config[BridgingHubBaseModule.KEY_STORAGE]
-            and config[BridgingHubBaseModule.KEY_STORAGE][
-                BridgingHubBaseModule.KEY_MODULE_NAME
-            ]
-        ):
-            s = load_module(
-                config, BridgingHubBaseModule.KEY_STORAGE, "default"
-            )
-
-        # Load input module on request by action or default to data
-        if (
-            action_name == BridgingHubBaseModule.KEY_BRIDGE
-            or action_name == BridgingHubBaseModule.KEY_INPUT
-        ):
-            m = load_module(config, BridgingHubBaseModule.KEY_INPUT, "default")
-            # get the infos from input
-            ri = m.input()
-            if "verbose" in config and config["verbose"] == "True":
-                if ri:
-                    print("Data from input: ", ri)
-            if (
-                config[BridgingHubBaseModule.KEY_DATA][
-                    BridgingHubBaseModule.KEY_DATA_VALUE_MAP
-                ].keys()
-                != ri.keys()
-            ):
-                raise InputModuleException(
-                    "Every module MUST make sure all configured data points \
-do get a timestamp and a value.",
-                )
-            if isinstance(s, StorageBaseModule):
-                # write input to buffer and return bufferd items
-                rc = s.write_buffer(ri)
-        elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
-            if isinstance(s, StorageBaseModule):
-                # w/o input, just read from buffer
-                rc = s.read_buffer()
-            else:
-                # w/o input and buffer, just load the config
-                ri = config[BridgingHubBaseModule.KEY_DATA]
-        if "verbose" in config and config["verbose"] == "True":
-            if rc:
-                print("Data from buffer: ", rc)
-        if (
-            action_name == BridgingHubBaseModule.KEY_BRIDGE
-            or action_name == BridgingHubBaseModule.KEY_OUTPUT
-        ):
-            m = load_module(
-                config, BridgingHubBaseModule.KEY_OUTPUT, "default"
-            )
-            if ri:
-                ro = m.output(ri)
-            elif rc:
-                ro = m.output(rc)
-            if isinstance(s, StorageBaseModule):
-                # process current data mv timestamp_datakey.json from new
-                # to junk or archive based on marker from output..
-                re = s.store(ro)
-            if "verbose" in config and config["verbose"] == "True":
-                if ro:
-                    print("Data from output:", ro)
-                if re:
-                    print("Data from storage:", re)
-        elif action_name == BridgingHubBaseModule.KEY_CLEANUP:
-            if isinstance(s, StorageBaseModule):
-                pass  # cleanup
-            else:
-                raise BrokenConfigException(
-                    "Action 'cleanup' only makes sense if \
-'storage' is configured."
-                )
-        else:  # action_name == BridgingHubBaseModule.KEY_INPUT (no output)
-            if ri:
-                print("Data from input: ", ri)
-            if rc:
-                print("Data from buffer: ", rc)
-
-        return True
-    # TODO: input->prefilter->buffer->filter->output->postfilter->store
-    except (ModuleLoaderException, InputModuleException) as e:
-        raise ModuleFlowException(f"Stopped running the module pipe: {e}")
-    # TODO how shall we exit eventually? Clean up should be done in the
-    # submodule..?!
 
 
 if __name__ == "__main__":
