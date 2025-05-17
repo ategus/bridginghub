@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # using argparse as we want to keep dependencies minimal
 import argparse
+import inspect
 import logging
 import os
 
 # import shutil
 import sys
 from os.path import join
-from typing import Callable, cast
+from typing import Any, Callable, cast
 
 from bridging_hub_module import (  # InputModuleException,; StorageBaseModule,
     BridgingHubBaseModule,
@@ -154,6 +155,7 @@ def run_data_flow(action_name, config) -> bool:
     :param dict config: The parameter map that was read from file
     :rtype: bool
     :return: Report success/failure and leave the rest to the caller
+    :raise: AssertionError
     :raise: ModuleFlowException"""
     # extract the data once
     data: ConfigDataType = config.pop(BridgingHubBaseModule.KEY_DATA)
@@ -162,13 +164,18 @@ def run_data_flow(action_name, config) -> bool:
     # filter by action_name..
     if verbose:
         print(f"Loading all relevant modules for action '{action_name}'...")
+    logging.debug(f"Action mode is {action_name}")
+    logging.info("Load and dispatch modules from config.")
     for segment_name, segment_config in config.items():
+        # extract the module_type from config (ignoring the optional subtype)
+        # and use it in load_module()
         module_type: str = segment_config[
             BridgingHubBaseModule.KEY_MODULE_TYPE
         ].split(BridgingHubBaseModule.KEY_TYPE_SPLIT)[0]
         # register the module, and the processing order
         if verbose:
-            print("  - Processing:", action_name, segment_name)
+            print("  - found:", action_name, segment_name)
+        logging.debug(f"Found module {segment_name}")
         m = load_module(
             {
                 module_type: segment_config,
@@ -177,18 +184,27 @@ def run_data_flow(action_name, config) -> bool:
             module_type,
             segment_name,
         )
+        logging.debug(f"Added module {m.the_name}")
         # let the module subscribe with others and tell it
         # about the action context the user requested
-        c = m.dispatch(action_name)
-        if c:
+        c = cast(
+            Callable[[BridgingHubBaseModule], Any], m.dispatch(action_name)
+        )
+        if c is not None:
             flow.append(c)
-        print(len(flow))
 
+    if verbose:
+        print("Let the data flow..")
+    logging.info("Starting the main data flow.")
     msg: dict = {}
     for c in flow:
-        print("Module:", dir(c))
+        assert inspect.ismethod(c), "Can only use method calls here."
+        assert isinstance(c.__self__, BridgingHubBaseModule), "Invalid Module."
         msg = c(msg)
-
+        logging.info(
+            f"""{c.__self__.the_name}<{c.__self__.__class__.__name__}>.\
+{c.__name__}(msg): {str(msg)}"""
+        )
     return True
 
 
@@ -310,6 +326,6 @@ if __name__ == "__main__":
     except IllegalFileOperation as e:
         print(f"Could not load the config: {e}")
         sys.exit(2)
-    except ModuleFlowException as e:
+    except (AssertionError, ModuleFlowException) as e:
         print(f"The following error occurred: {e}")
         sys.exit(98)

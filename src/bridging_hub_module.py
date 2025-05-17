@@ -127,8 +127,14 @@ class BridgingHubBaseModule(ABC):
     # * buffer (temporary storage in case output fails)
     # * archive (long term storage for control and backup)
     action_type: str = ""
+    # The name of this module as in the queue (just for fun/debugging)
+    the_name: str = ""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = "") -> None:
+        """Instanciate the object.
+
+        :param name: obtional name"""
+        self.the_name = name
         # Store the config details related to the action type.
         self._action_detail: dict[str, str] = {}
         # This will be filled with the KEY_DATA_VALUE_MAP on run init
@@ -166,17 +172,43 @@ class BridgingHubBaseModule(ABC):
         :raise BrokenConfigException:"""
         pass
 
+    def listen(self, observer: Callable) -> Callable | None:
+        """Try to subscribe with subjects defined in the config or
+        return the observer method to be added to the main loop.
+
+        :param Callable observer: the method subscribing with
+        :rtype: Callable
+        :return: None if subscriptions added or the observer
+        :raise: BrokenConfigException"""
+        if (
+            BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE in self._action_detail
+        ) and (
+            self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+        ):
+            s = self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            if not isinstance(s, list):
+                raise BrokenConfigException(
+                    f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
+MUST be a list, if defined."
+                )
+            else:
+                for subscription in s:
+                    mod = BridgingHubModuleRegistry.load_module(subscription)
+                    mod.subscribe(observer)
+                return None
+        return observer
+
     def subscribe(self, call: Callable) -> None:
         """
-        Any method interested can subscribe here in order to receive
+        Any 'observer' interested can subscribe here in order to receive
         the data gathered in this input module.
         """
         self._subscription.append(call)
 
     def on_data(self, data: dict[str, dict[str, str]]) -> None:
         """
-        On data input, call this method to pass the data to all
-        parties interested.
+        On data input, call this method to 'notify' the 'observers'
+        and pass the data to all parties interested.
 
         :param data: single data element as dict
         :rtype: dict
@@ -264,26 +296,13 @@ class InputBaseModule(BridgingHubBaseModule):
         # Input modules:
         # in 'bridge' or 'input' mode subscribe to defined modules
         # or dispatch directly to main loop
-        if action_name == BridgingHubBaseModule.KEY_OUTPUT:
-            return None
         if (
-            BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE in self._action_detail
-        ) and (
-            self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_INPUT
         ):
-            s = self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-            if not isinstance(s, list):
-                raise BrokenConfigException(
-                    f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
-MUST be a list, if defined."
-                )
-            else:
-                for subscription in s:
-                    mod = BridgingHubModuleRegistry._registry[subscription]
-                    mod.subscribe(self.input)
+            return self.listen(self.input)
+        else:  # OUTPUT or CLEANUP
             return None
-        else:
-            return self.input
 
     def output(
         self, message: dict[str, dict[str, str]]
@@ -318,26 +337,13 @@ class OutputBaseModule(BridgingHubBaseModule):
         # Output modules:
         # In 'bridge' or 'output' mode, subscribe to defined modules
         # or dispatch directly to main loop
-        if action_name == BridgingHubBaseModule.KEY_INPUT:
-            return None
         if (
-            BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE in self._action_detail
-        ) and (
-            self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
+            action_name == BridgingHubBaseModule.KEY_BRIDGE
+            or action_name == BridgingHubBaseModule.KEY_OUTPUT
         ):
-            s = self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-            if not isinstance(s, list):
-                raise BrokenConfigException(
-                    f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
-MUST be a list, if defined."
-                )
-            else:
-                for subscription in s:
-                    mod = BridgingHubModuleRegistry.load_module(subscription)
-                    mod.subscribe(self.output)
+            return self.listen(self.output)
+        else:  # INPUT or CLEANUP
             return None
-        else:
-            return self.output
 
     def input(
         self, message: dict[str, dict[str, str]] = {}
@@ -453,24 +459,7 @@ class FilterBaseModule(BridgingHubBaseModule):
         # In 'output' mode, subscribe to modules or main loop,
         # except as first one, i.e. an empty list, it would not
         # change anything, as the messages will be empty..
-        if (
-            BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE in self._action_detail
-        ) and (
-            self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-        ):
-            s = self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-            if not isinstance(s, list):
-                raise BrokenConfigException(
-                    f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
-MUST be a list, if defined."
-                )
-            else:
-                for subscription in s:
-                    mod = BridgingHubModuleRegistry.load_module(subscription)
-                    mod.subscribe(self.filter)
-            return None
-        else:
-            return self.filter
+        return self.listen(self.filter)
 
     def input(
         self, message: dict[str, dict[str, str]] = {}
@@ -502,6 +491,7 @@ class StorageBaseModule(BridgingHubBaseModule):
     module usable at a time.
     """
 
+    KEY_SUBTYPE_BUFFER: str = "buffer"
     action_type: str = BridgingHubBaseModule.KEY_STORAGE
 
     def dispatch(self, action_name: str) -> Callable | None:
@@ -511,25 +501,33 @@ class StorageBaseModule(BridgingHubBaseModule):
         :param action_name: context to consider
         :raise BrokenConfigException:"""
         # Storage modules:
+        # a) acting as 'buffer'
         # In 'bridge' or 'input' mode, subscribe to defined modules or
-        # main loop. In 'output' mode dispatch to main loop with read_buffer
-        if (
-            BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE in self._action_detail
-        ) and (
-            self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-        ):
-            s = self._action_detail[BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE]
-            if not isinstance(s, list):
-                raise BrokenConfigException(
-                    f"'{BridgingHubBaseModule.KEY_ACTION_SUBSCRIBE}' \
-MUST be a list, if defined."
-                )
+        # main loop with self.write_buffer
+        # In 'output' mode dispatch to main loop with self.read_buffer
+        # b) acting as 'archive'
+        # In 'input' mode, do nothing
+        # In 'bridge' or 'output' mode though, dispatch to modules or
+        # main with self.store
+        mt: list = self._action_detail[
+            BridgingHubBaseModule.KEY_MODULE_TYPE
+        ].split(BridgingHubBaseModule.KEY_TYPE_SPLIT)
+        # extract and see if we are in 'buffer' mode
+        buffer = len(mt) >= 1 and mt[1] == StorageBaseModule.KEY_SUBTYPE_BUFFER
+        if action_name == BridgingHubBaseModule.KEY_BRIDGE:
+            if buffer:
+                return self.listen(self.write_buffer)
             else:
-                for subscription in s:
-                    mod = BridgingHubModuleRegistry.load_module(subscription)
-                    mod.subscribe(self.write_buffer)
+                return self.listen(self.store)
+        elif action_name == BridgingHubBaseModule.KEY_INPUT:
+            if buffer:
+                return self.listen(self.write_buffer)
         elif action_name == BridgingHubBaseModule.KEY_OUTPUT:
-            return self.read_buffer
+            if buffer:
+                return self.listen(self.read_buffer)
+            else:
+                return self.listen(self.store)
+        # INPUT:archive; TODO: CLEANUP not handled yet..
         return None
 
     def input(
@@ -662,7 +660,7 @@ registered for '{module_path}.'"
                 )
             else:
                 cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ] = cast(
-                    BridgingHubBaseModule, module_class()
+                    BridgingHubBaseModule, module_class(segment_name)
                 )
         if isinstance(
             cls._registry[n][BridgingHubModuleRegistry.KEY_MOD_OBJ],

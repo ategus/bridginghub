@@ -8,21 +8,21 @@ _data: "config/data.d/example/example.yml"
 
 stdinput: "config/collect.d/example/example.yml"
 
-#tmpbuffer:
-#  module_type: "storage:buffer"
-#  module_path: "module.storage.default_storage"
-#  module_class_name: "DefaultStorageModule"
-#  cache: "/tmp/bridgingHubTest/new"
+tmpbuffer:
+  module_type: "storage:buffer"
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  buffer: "/tmp/bridgingHubTest/new"
 
 stdoutput: "config/send.d/example/example.yml"
 
-#remember:
-#  module_type: "storage:archive"
-#  module_path: "module.storage.default_storage"
-#  module_class_name: "DefaultStorageModule"
-#  cache: "/tmp/bridgingHubTest/new"
-#  junk: "/tmp/bridgingHubTest/junk"
-#  archive: "/tmp/bridgingHubTest/archive"
+remember:
+  module_type: "storage:archive"
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  buffer: "/tmp/bridgingHubTest/new"
+  junk: "/tmp/bridgingHubTest/junk"
+  archive: "/tmp/bridgingHubTest/archive"
 
   #filter:
     #pre: # not implemented yet
