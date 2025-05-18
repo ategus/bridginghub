@@ -184,13 +184,13 @@ def run_data_flow(action_name, config) -> bool:
             module_type,
             segment_name,
         )
-        logging.debug(f"Added module {m.the_name}")
         # let the module subscribe with others and tell it
         # about the action context the user requested
         c = cast(
             Callable[[BridgingHubBaseModule], Any], m.dispatch(action_name)
         )
         if c is not None:
+            logging.debug(f"Added module {m.the_name} to main flow.")
             flow.append(c)
 
     if verbose:
@@ -202,8 +202,8 @@ def run_data_flow(action_name, config) -> bool:
         assert isinstance(c.__self__, BridgingHubBaseModule), "Invalid Module."
         msg = c(msg)
         logging.info(
-            f"""{c.__self__.the_name}<{c.__self__.__class__.__name__}>.\
-{c.__name__}(msg): {str(msg)}"""
+            f"""Running {c.__self__.the_name}<{c.__self__.__class__.__name__}>\
+.{c.__name__}(msg): {str(msg)}"""
         )
     return True
 
