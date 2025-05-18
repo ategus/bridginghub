@@ -1,5 +1,6 @@
 # import json
 import logging
+from typing import cast
 
 # from jinja2 import Template, Environment
 from jinja2 import Environment
@@ -7,9 +8,6 @@ from jinja2 import Environment
 from bridging_hub_module import (
     FilterBaseModule,
     FilterModuleException,
-)
-from bridging_hub_types import (
-    ConfigSubType,
 )
 
 # from jinja2.exceptions import (
@@ -46,22 +44,29 @@ class DefaultFilter(FilterBaseModule):
         #        ]
         # prepare filter lists
         # create a Jinja2 environment
-        self.env = Environment()
+        self._env = Environment()
+        # register with dict type and store in object for quick access
+        self._predefined: list[str] = []
+        self._template: list[str] = []
 
     def configure(self, config: dict) -> None:
+        """Configure the module with the specific config. This is intended
+        to happen after Object creation.
+        :param dict config:
+        :raise BrokenConfigException:"""
         super().configure(config)
 
         # make filter info more accessible
-        self._predefined: ConfigSubType = self._action_detail.pop(
-            DefaultFilter.KEY_PREDEFINED
+        self._predefined = cast(
+            list[str], self._action_detail.pop(DefaultFilter.KEY_PREDEFINED)
         )
         logging.debug(
             f"  * \
 {0 if not self._predefined else len(self._predefined)} predefined \
 filters added."
         )
-        self._template: ConfigSubType = self._action_detail.pop(
-            DefaultFilter.KEY_TEMPLATE
+        self._template = cast(
+            list[str], self._action_detail.pop(DefaultFilter.KEY_TEMPLATE)
         )
         logging.debug(
             f"  * \
@@ -69,7 +74,7 @@ filters added."
 jinja templates added."
         )
         # register the custom filter
-        self.env.filters["dict_to_items"] = self._dict_to_items_filter
+        self._env.filters["dict_to_items"] = self._dict_to_items_filter
 
     def _merge_message_with_config_filter(
         self, message: dict[str, dict[str, str]]
@@ -86,9 +91,15 @@ jinja templates added."
         try:
             for k, v in message.items():
                 m[k] = v
-                for kk, vv in self._data[DefaultFilter.KEY_DATA_VALUE_MAP][
-                    k
-                ].items():
+                dataconf = cast(
+                    dict[str, dict[str, str]],
+                    self._data[DefaultFilter.KEY_DATA_VALUE_MAP],
+                )
+                datapoint = cast(
+                    dict[str, str],
+                    dataconf[k],
+                )
+                for kk, vv in datapoint.items():
                     m[k][kk] = vv
         except Exception as e:
             raise FilterModuleException(
