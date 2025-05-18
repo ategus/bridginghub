@@ -1,4 +1,4 @@
-# import logging
+import logging
 
 from bridging_hub_module import SenderBaseModule
 
@@ -11,6 +11,12 @@ class StdoutSender(SenderBaseModule):
     def send(
         self, message: dict[str, dict[str, str]]
     ) -> dict[str, dict[str, str]]:
+        """Send data to standard out.
+
+        :param message: data set as dict
+        :rtype: dict
+        :return: data processed"""
+        logging.debug(f"bhm.send({message})")
         m: dict[str, dict[str, str]] = {}
         for k, v in message.items():
             s = ""
