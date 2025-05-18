@@ -14,6 +14,14 @@ tmpbuffer:
   module_class_name: "DefaultStorageModule"
   buffer: "/tmp/bridgingHubTest/new"
 
+filter:
+  module_type: "filter"
+  module_path: "module.filter.default_filter"
+  module_class_name: "DefaultFilter"
+  predefined_filter:
+    - "merge_message_with_config()"
+  jinja_template:
+
 stdoutput: "config/send.d/example/example.yml"
 
 remember:
@@ -23,10 +31,5 @@ remember:
   buffer: "/tmp/bridgingHubTest/new"
   junk: "/tmp/bridgingHubTest/junk"
   archive: "/tmp/bridgingHubTest/archive"
-
-  #filter:
-    #pre: # not implemented yet
-    #main: # not implemented yet
-    #post: # not implemented yet
 
 

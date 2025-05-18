@@ -4,3 +4,9 @@ isort
 flake8
 mypy
 types-PyYAML ; python_version >= "3.7"
+requests
+types-requests
+jinja2
+geohash2
+gpsd-py3
+pymodbus

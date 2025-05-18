@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from importlib import import_module
@@ -134,6 +135,7 @@ class BridgingHubBaseModule(ABC):
         """Instanciate the object.
 
         :param name: obtional name"""
+        logging.debug(f"Instanciate *{name}<{self.__class__.__name__}>*")
         self.the_name = name
         # Store the config details related to the action type.
         self._action_detail: dict[str, str] = {}
@@ -269,6 +271,7 @@ MUST be a list, if defined."
             raise BrokenConfigException(
                 f"No '{self.action_type}' section found in the config."
             )
+        logging.debug("  * base configuration successful.")
 
     def current_timestamp(self) -> int:
         """Generate a timestamp in nano seconds since Unix Epoch.
@@ -277,6 +280,16 @@ MUST be a list, if defined."
         epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
         return int((now - epoch).total_seconds() * 1000000000)
+
+    def current_datetimestr(self, form: str = "") -> str:
+        """Generate a formated date-time string representation.
+        :rtype: str
+        :return: date-time string"""
+        logging.debug(f"bhm.current_datetimestr({form})")
+        if form:
+            return datetime.now().strftime(form)
+        else:
+            return datetime.now().isoformat()
 
 
 class InputBaseModule(BridgingHubBaseModule):
