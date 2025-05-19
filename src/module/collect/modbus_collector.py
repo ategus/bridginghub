@@ -81,7 +81,7 @@ class ModbusCollector(CollectorBaseModule):
         byte_order = cast(
             Literal["little", "big"],
             self._action_detail[
-                self._custom_name[ModbusCollector.KEY_MODBUS_BYTE_ORDER_NAME]
+                ModbusCollector.KEY_MODBUS_DEFAULT_BYTE_ORDER
             ].lower(),
         )
         # Determine byte order for packing and unpacking
@@ -106,7 +106,7 @@ class ModbusCollector(CollectorBaseModule):
         data_type = cast(
             Literal["float", "int"],
             self._action_detail[
-                self._custom_name[ModbusCollector.KEY_MODBUS_DATA_TYPE_NAME]
+                ModbusCollector.KEY_MODBUS_DEFAULT_DATA_TYPE
             ].lower(),
         )
         if data_type == "float":
@@ -431,7 +431,7 @@ Use 'tcp' or 'rtu'."""
                                     ]
                                 ]
                             ),
-                            int(
+                            count=int(
                                 v[
                                     self._custom_name[
                                         ModbusCollector.KEY_MODBUS_COUNT_NAME
