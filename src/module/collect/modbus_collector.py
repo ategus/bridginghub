@@ -1,4 +1,4 @@
-# import logging
+import logging
 import math
 import time
 from struct import unpack
@@ -77,6 +77,7 @@ class ModbusCollector(CollectorBaseModule):
             raise ValueError(
                 """At least two register values are required for conversion."""
             )
+        # TODO self._custom_name[ModbusCollector.KEY_MODBUS_BYTE_ORDER_NAME]
         byte_order = cast(
             Literal["little", "big"],
             self._action_detail[
@@ -101,6 +102,7 @@ class ModbusCollector(CollectorBaseModule):
             hex2 + hex1
         )  # TODO Order of hex2 and hex1 may depend on endianness
 
+        # TODO self._custom_name[ModbusCollector.KEY_MODBUS_DATA_TYPE_NAME]
         data_type = cast(
             Literal["float", "int"],
             self._action_detail[
@@ -122,6 +124,7 @@ class ModbusCollector(CollectorBaseModule):
         :return: the modbus client to connect to the server
         :raise: ModbusClientException
         """
+        logging.debug("bhm._create_modbus_client()")
         client: ModbusBaseClient = None
         try:
             if (
@@ -373,9 +376,11 @@ Use 'tcp' or 'rtu'."""
         :rtype: dict
         :return: mapping of the input info
         :raise InputModuleError:"""
+        logging.debug("bhm.collect()")
         # new data result dict with all data to be returned at the end
         r: dict[str, dict[str, str]] = {}
         try:
+            tmstmp: str = str(self.current_timestamp())
             # modbus client
             client: ModbusBaseClient = self._create_modbus_client()
 
@@ -386,13 +391,13 @@ Use 'tcp' or 'rtu'."""
                 self._data[ModbusCollector.KEY_DATA_VALUE_MAP],
             )
             for k, v in dataconf.items():
+                logging.debug(f".scanning {k}")
                 # only use 'r' after the run
-                tmpdata: dict[str, str] = {}
-                tmpdata[
-                    ModbusCollector._custom_name[
+                timestamp: dict[str, str] = {
+                    self._custom_name[
                         ModbusCollector.KEY_TIMESTAMP_NAME
-                    ]
-                ] = str(self.current_timestamp())
+                    ]: tmstmp
+                }
                 # look up maxretries from config
                 if (
                     ModbusCollector.KEY_MODBUS_MAX_CONNECTION_RETRIES
@@ -409,24 +414,32 @@ Use 'tcp' or 'rtu'."""
                 else:
                     max_retries = 8  # just something..
                 # just try a couple of times if necessary...
+                tmpv = None
                 for i in range(0, max_retries):
+                    logging.debug(f"..round {i}/{max_retries}")
+                    logging.debug(
+                        f"""...addr:\
+{v[self._custom_name[ModbusCollector.KEY_MODBUS_ADDRESS_NAME]]} count: \
+{v[self._custom_name[ModbusCollector.KEY_MODBUS_COUNT_NAME]]}"""
+                    )
                     try:
                         tmpv = client.read_input_registers(
                             int(
                                 v[
-                                    ModbusCollector._custom_name[
+                                    self._custom_name[
                                         ModbusCollector.KEY_MODBUS_ADDRESS_NAME
                                     ]
                                 ]
                             ),
                             int(
                                 v[
-                                    ModbusCollector._custom_name[
+                                    self._custom_name[
                                         ModbusCollector.KEY_MODBUS_COUNT_NAME
                                     ]
                                 ]
                             ),
                         )
+                        logging.debug(f"...found registers: {tmpv.registers}")
                         break
                     except ValueError as e:
                         raise ModbusException(
@@ -438,13 +451,15 @@ e.g. '{ModbusCollector.KEY_MODBUS_ADDRESS_NAME}' and \
                         time.sleep(2)
                         continue
                 try:
-                    r[k][
-                        ModbusCollector._custom_name[
-                            ModbusCollector.KEY_VALUE_NAME
-                        ]
-                    ] = str(
-                        self._convert_byte_registers_to_value(tmpv.registers)
-                    )
+                    if tmpv:
+                        r[k] = timestamp
+                        r[k][
+                            self._custom_name[ModbusCollector.KEY_VALUE_NAME]
+                        ] = str(
+                            self._convert_byte_registers_to_value(
+                                tmpv.registers
+                            )
+                        )
                 #            except (KeyError, ValueError, AttributeError):
                 except ValueError:
                     continue
