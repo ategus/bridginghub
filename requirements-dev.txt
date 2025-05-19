@@ -9,4 +9,4 @@ types-requests
 jinja2
 geohash2
 gpsd-py3
-pymodbus
+pymodbus ~= 3.6.8
