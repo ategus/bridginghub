@@ -81,9 +81,8 @@ class PostRequestSender(SenderBaseModule):
             )
 
             # mark done, if the request was successful
-            if (
-                response.status_code
-                == self._action_detail[PostRequestSender.KEY_SUCCESS]
+            if response.status_code == int(
+                self._action_detail[PostRequestSender.KEY_SUCCESS]
             ):
                 logging.info(
                     f"Data successfully sent to host: {response.status_code}"
