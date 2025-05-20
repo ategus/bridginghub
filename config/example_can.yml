@@ -1,0 +1,36 @@
+
+_bH:
+  compat: 1.0
+
+_data: "config/data.d/example/example.yml"
+
+
+canbus_collector:
+  module_type: "input"
+  module_class_name: "CanBusCollector"
+  module_path: "module.collect.canbus_collector"
+  channel: "vcan0" 
+  bustype: "socketcan"
+  bitrate: 500000
+  filters: null
+  read_timeout: 1.0
+
+
+tmpbuffer:
+  module_type: "storage:buffer"
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  buffer: "/tmp/bridgingHubTest/new"
+
+
+stdoutput: "config/send.d/example/example.yml"
+
+remember:
+  module_type: "storage:archive"
+  module_path: "module.storage.default_storage"
+  module_class_name: "DefaultStorageModule"
+  buffer: "/tmp/bridgingHubTest/new"
+  junk: "/tmp/bridgingHubTest/junk"
+  archive: "/tmp/bridgingHubTest/archive"
+
+

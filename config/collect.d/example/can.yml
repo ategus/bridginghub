@@ -1,0 +1,48 @@
+# This YAML file defines the configuration for a CAN bus collector segment.
+# When referenced in a main configuration file, e.g.:
+#   my_can_interface: config/collect.d/can.yml
+# 'my_can_interface' becomes the segment_name, and this file's content
+# becomes the segment_config.
+
+module_type: "input"
+
+# Class name of the module to be loaded
+module_class_name: "CanBusCollector"  # Changed from 'module_name'
+
+# Python import path to the module file (relative to project's Python path root)
+# e.g., if your project root is in PYTHONPATH, and the file is src/module/collect/canbus_collector.py
+module_path: "module.collect.canbus_collector"
+
+# ---- Parameters specific to CanBusCollectorModule ----
+
+# `channel`: The CAN interface channel.
+# For socketcan on Linux, this might be 'can0', 'vcan0', etc.
+# For other bustypes, consult python-can documentation.
+channel: "vcan0" # Example: virtual CAN interface on Linux
+
+# `bustype`: The type of CAN interface.
+# Examples: 'socketcan', 'pcan', 'vector', 'serial', 'kvaser', 'usb2can', etc.
+# Ensure the necessary drivers and python-can support for the chosen bustype are installed.
+bustype: "socketcan"
+
+# `bitrate`: The bitrate of the CAN bus in bits/sec (e.g., 125000, 250000, 500000, 1000000).
+# This is optional for some bustypes (like virtual interfaces or if bitrate is set by other means).
+# Remove or set to null if not needed or to use python-can defaults for the bustype.
+bitrate: 500000
+
+# `filters`: Optional list of CAN filters. If null or omitted, all messages are received.
+# Each filter is a dictionary. Refer to python-can documentation for filter dictionary format.
+filters: null
+# Example of a filter:
+# filters:
+#   - can_id: 0x100
+#     can_mask: 0x7F0 # Match IDs 0x100-0x10F
+#     extended: False
+#   - can_id: 0x18DAF111 # Example J1939 PGN, source address 0x11
+#     can_mask: 0x1FFFFF00 # Match specific PGN from any source, or use 0x1FFFFFFF for specific source
+#     extended: True
+
+# `read_timeout`: Timeout in seconds for `bus.recv()`.
+# How long to wait for a message before returning.
+# If 0, it's non-blocking. If None, it blocks indefinitely.
+read_timeout: 1.0
